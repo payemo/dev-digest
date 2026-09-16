@@ -1,5 +1,5 @@
 import type { Container } from '../../platform/container.js';
-import type { FindingActionKind, RunEventKind, RunTrace } from '@devdigest/shared';
+import type { FindingActionKind, RunEventKind, RunSummary, RunTrace } from '@devdigest/shared';
 import { AppError, NotFoundError } from '../../platform/errors.js';
 import type { AgentRow } from '../../db/rows.js';
 import { ReviewRepository } from './repository.js';
@@ -7,6 +7,7 @@ import { type ReviewDto, type ReviewDtoFinding } from './helpers.js';
 import { ReviewRunExecutor, type Logger } from './run-executor.js';
 import { actOnFinding as actOnFindingImpl } from './findings.js';
 import { reviewToDto } from './helpers.js';
+import { effectiveRunCost, type Estimator } from '../../platform/run-cost.js';
 
 // Re-export DTO types + converters for backward-compatible imports from
 // './service.js' (these previously lived here; logic now in ./helpers.ts).
@@ -66,9 +67,21 @@ export class ReviewService {
     return this.repo.activeRunsForPull(workspaceId, prId);
   }
 
-  /** All runs for a PR (any status), newest first — the run history (incl. failures). */
-  async listRuns(workspaceId: string, prId: string) {
-    return this.repo.listRunsForPull(workspaceId, prId);
+  /**
+   * All runs for a PR (any status), newest first — the run history (incl.
+   * failures). Fills in `cost_usd` for runs whose provider didn't report one
+   * (derived from model + tokens via the PriceBook; zero extra model calls).
+   */
+  async listRuns(workspaceId: string, prId: string): Promise<RunSummary[]> {
+    const rows = await this.repo.listRunsForPull(workspaceId, prId);
+    const estimate: Estimator = (m, i, o) => this.container.priceBook.estimate(m, i, o);
+    return rows.map((r) => ({
+      ...r,
+      cost_usd: effectiveRunCost(
+        { costUsd: r.cost_usd, model: r.model, tokensIn: r.tokens_in, tokensOut: r.tokens_out },
+        estimate,
+      ),
+    }));
   }
 
   /** Delete one run from the history (+ its trace). */
@@ -173,7 +186,30 @@ export class ReviewService {
     );
   }
 
+  /**
+   * Old traces (persisted while cost was removed) have no `stats.cost_usd`
+   * key at all; new failed-run traces have it as `null`. Both derive it from
+   * `config.model` + `stats` tokens on read — never mutated back to storage.
+   */
   async getRunTrace(runId: string): Promise<RunTrace | undefined> {
-    return this.repo.getRunTrace(runId);
+    const trace = await this.repo.getRunTrace(runId);
+    if (!trace) return undefined;
+    if (trace.stats.cost_usd != null) return trace;
+    const estimate: Estimator = (m, i, o) => this.container.priceBook.estimate(m, i, o);
+    return {
+      ...trace,
+      stats: {
+        ...trace.stats,
+        cost_usd: effectiveRunCost(
+          {
+            costUsd: null,
+            model: trace.config.model,
+            tokensIn: trace.stats.tokens_in,
+            tokensOut: trace.stats.tokens_out,
+          },
+          estimate,
+        ),
+      },
+    };
   }
 }

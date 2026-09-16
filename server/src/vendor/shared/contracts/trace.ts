@@ -62,6 +62,9 @@ export const RunStats = z.object({
   duration_ms: z.number().int(),
   tokens_in: z.number().int(),
   tokens_out: z.number().int(),
+  // Absent on traces persisted while cost was removed; null when the
+  // provider reported none and the model isn't priced.
+  cost_usd: z.number().nullish(),
   findings: z.number().int(),
   grounding: z.string(),
 });
@@ -102,6 +105,9 @@ export const RunSummary = z.object({
   duration_ms: z.number().int().nullable(),
   tokens_in: z.number().int().nullable(),
   tokens_out: z.number().int().nullable(),
+  // Effective cost in USD: the provider's billed cost when it reported one,
+  // else derived from model + tokens on read. Null = model not priced.
+  cost_usd: z.number().nullable(),
   findings_count: z.number().int().nullable(),
   grounding: z.string().nullable(),
   ran_at: z.string().nullable(),

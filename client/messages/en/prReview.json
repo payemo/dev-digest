@@ -48,7 +48,8 @@
     "cancelled": "cancelled",
     "running": "running",
     "findings": "{count} finding(s)",
-    "blockers": " · {count} blockers"
+    "blockers": " · {count} blockers",
+    "usage": " · {tokens} tok · {cost}"
   },
   "smartDiff": {
     "coreLabel": "Core",
@@ -91,6 +92,7 @@
       "author": "Author",
       "size": "Size",
       "score": "Score",
+      "cost": "Cost",
       "status": "Status",
       "updated": "Updated"
     },

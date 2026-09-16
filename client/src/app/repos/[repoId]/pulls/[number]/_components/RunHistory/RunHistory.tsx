@@ -4,6 +4,7 @@ import React from "react";
 import { useTranslations } from "next-intl";
 import { Badge, Icon, CircularScore, type IconName } from "@devdigest/ui";
 import type { RunSummary, PrCommit } from "@devdigest/shared";
+import { formatTokenCount, formatUsd } from "@/lib/format";
 
 /**
  * PR timeline — every agent run interleaved with the PR's commits, newest-first
@@ -192,6 +193,14 @@ export function RunHistory({
                 <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
                   {t("runStatus.findings", { count: r.findings_count ?? 0 })}
                   {(r.blockers ?? 0) > 0 ? t("runStatus.blockers", { count: r.blockers ?? 0 }) : ""}
+                  {(r.tokens_in != null || r.tokens_out != null) && (
+                    <span className="tnum">
+                      {t("runStatus.usage", {
+                        tokens: formatTokenCount((r.tokens_in ?? 0) + (r.tokens_out ?? 0)),
+                        cost: formatUsd(r.cost_usd),
+                      })}
+                    </span>
+                  )}
                 </div>
               )}
             </div>

@@ -157,7 +157,14 @@ describe('AI contracts parse fixtures', () => {
   it('RunTrace (data2.jsx TRACE single-document)', () => {
     const trace = RunTrace.parse({
       config: { agent: 'Security Reviewer', version: 'v7', model: 'gpt-4.1', pr: 482, source: 'local' },
-      stats: { duration_ms: 8200, tokens_in: 14820, tokens_out: 1240, findings: 3, grounding: '3/3 passed' },
+      stats: {
+        duration_ms: 8200,
+        tokens_in: 14820,
+        tokens_out: 1240,
+        cost_usd: 0.06,
+        findings: 3,
+        grounding: '3/3 passed',
+      },
       prompt_assembly: { system: 's', user: 'u' },
       tool_calls: [{ tool: 'read_file', args: "'src/config.ts'", meta: '1,240 bytes', ms: 120 }],
       raw_output: '{}',
@@ -166,6 +173,24 @@ describe('AI contracts parse fixtures', () => {
       log: [{ t: '00.00', kind: 'info', msg: 'started' }],
     });
     expect(trace.tool_calls).toHaveLength(1);
+    expect(trace.stats.cost_usd).toBe(0.06);
+  });
+
+  // Traces persisted while cost was removed have no `cost_usd` key at all on
+  // `stats` — RunStats.cost_usd must be .nullish() (accepts missing AND null),
+  // not .nullable() (requires the key), or old docs fail to parse.
+  it('RunTrace stats tolerates a missing cost_usd key (pre-cost-badge doc)', () => {
+    const trace = RunTrace.parse({
+      config: { agent: 'Security Reviewer', version: 'v7', model: 'gpt-4.1', pr: 482, source: 'local' },
+      stats: { duration_ms: 8200, tokens_in: 14820, tokens_out: 1240, findings: 3, grounding: '3/3 passed' },
+      prompt_assembly: { system: 's', user: 'u' },
+      tool_calls: [],
+      raw_output: '{}',
+      memory_pulled: [],
+      specs_read: [],
+      log: [],
+    });
+    expect(trace.stats.cost_usd).toBeUndefined();
   });
 });
 

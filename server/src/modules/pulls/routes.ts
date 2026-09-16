@@ -8,6 +8,7 @@ import { getContext } from '../_shared/context.js';
 import { IdParams } from '../_shared/schemas.js';
 import { AppError, NotFoundError } from '../../platform/errors.js';
 import { deriveReviewStatus } from './status.js';
+import { sumRunCosts, type Estimator, type RunCostInputs } from '../../platform/run-cost.js';
 
 /**
  * F1 — pulls module. PR import via Octokit (list + per-PR detail).
@@ -129,6 +130,31 @@ export default async function pullsRoutes(appBase: FastifyInstance) {
       }
     }
 
+    // Total COST across ALL runs of each PR. Computed on read, same one-IN-query
+    // + JS-grouping shape as the score above. Runs whose provider didn't report
+    // a cost are priced from model + tokens via the PriceBook (no extra model
+    // calls). A PR with no runs sums to 0 — always a number, never a dash.
+    const runsByPr = new Map<string, RunCostInputs[]>();
+    if (prIds.length > 0) {
+      const runRows = await container.db
+        .select({
+          prId: t.agentRuns.prId,
+          model: t.agentRuns.model,
+          tokensIn: t.agentRuns.tokensIn,
+          tokensOut: t.agentRuns.tokensOut,
+          costUsd: t.agentRuns.costUsd,
+        })
+        .from(t.agentRuns)
+        .where(and(eq(t.agentRuns.workspaceId, workspaceId), inArray(t.agentRuns.prId, prIds)));
+      for (const r of runRows) {
+        if (!r.prId) continue; // prId is nullable (ON DELETE SET NULL)
+        const list = runsByPr.get(r.prId) ?? [];
+        list.push(r);
+        runsByPr.set(r.prId, list);
+      }
+    }
+    const estimateCost: Estimator = (m, i, o) => container.priceBook.estimate(m, i, o);
+
     const now = Date.now();
     return rows.map((r) => {
       const review = latestReviewByPr.get(r.id);
@@ -153,6 +179,7 @@ export default async function pullsRoutes(appBase: FastifyInstance) {
         opened_at: r.openedAt?.toISOString() ?? null,
         updated_at: r.updatedAt?.toISOString() ?? null,
         score: review ? review.score : null,
+        cost_usd: sumRunCosts(runsByPr.get(r.id) ?? [], estimateCost),
       };
     });
   });

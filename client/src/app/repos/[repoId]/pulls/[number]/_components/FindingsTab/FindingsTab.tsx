@@ -63,6 +63,13 @@ export function FindingsTab({
     [onDelete],
   );
 
+  // Look up each review's run (cost + tokens for its VerdictBanner) by run_id.
+  // prRuns is already fetched for the Timeline above — no extra request.
+  const runById = React.useMemo(
+    () => new Map((prRuns ?? []).map((r) => [r.run_id, r] as const)),
+    [prRuns],
+  );
+
   // Timeline → Review-runs navigation: clicking an agent name in the timeline
   // opens + scrolls to that run's accordion below. The nonce re-triggers the
   // scroll even when the same run is clicked twice.
@@ -164,6 +171,7 @@ export function FindingsTab({
             headSha={headSha}
             targetRunId={target?.runId ?? null}
             targetNonce={target?.n ?? 0}
+            run={review.run_id ? runById.get(review.run_id) ?? null : null}
           />
         ))
       )}

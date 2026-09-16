@@ -6,6 +6,7 @@ import React from "react";
 import { useTranslations } from "next-intl";
 import { Icon, Badge, CircularScore } from "@devdigest/ui";
 import type { Verdict } from "@devdigest/shared";
+import { formatTokensCompact, formatUsd } from "@/lib/format";
 import { VERDICT_META } from "./constants";
 import { s } from "./styles";
 
@@ -16,6 +17,9 @@ export function VerdictBanner({
   findingsCount,
   blockers,
   agentName,
+  costUsd = null,
+  tokensIn = null,
+  tokensOut = null,
 }: {
   verdict: Verdict;
   summary: string | null;
@@ -23,6 +27,11 @@ export function VerdictBanner({
   findingsCount: number;
   blockers: number;
   agentName?: string | null;
+  /** This run's cost + tokens (from the matching RunSummary); omitted when
+   *  no run is linked (e.g. the seeded demo review has no run_id). */
+  costUsd?: number | null;
+  tokensIn?: number | null;
+  tokensOut?: number | null;
 }) {
   const t = useTranslations("prReview");
   const m = VERDICT_META[verdict] ?? VERDICT_META.comment;
@@ -46,6 +55,11 @@ export function VerdictBanner({
           )}
         </div>
         {summary && <p style={s.summary}>{summary}</p>}
+        {costUsd != null && tokensIn != null && tokensOut != null && (
+          <div className="tnum" style={s.usage}>
+            {formatUsd(costUsd)} · {formatTokensCompact(tokensIn, tokensOut)}
+          </div>
+        )}
       </div>
       {score != null && (
         <div style={s.scoreCol}>
