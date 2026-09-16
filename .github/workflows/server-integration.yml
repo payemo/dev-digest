@@ -16,10 +16,12 @@ on:
     paths:
       - 'server/**'
       - '.github/workflows/server-integration.yml'
+      - '!**/INSIGHTS.md'
   pull_request:
     paths:
       - 'server/**'
       - '.github/workflows/server-integration.yml'
+      - '!**/INSIGHTS.md'
 
 permissions:
   contents: read

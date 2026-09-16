@@ -10,10 +10,12 @@ on:
     paths:
       - 'client/**'
       - '.github/workflows/client.yml'
+      - '!**/INSIGHTS.md'
   pull_request:
     paths:
       - 'client/**'
       - '.github/workflows/client.yml'
+      - '!**/INSIGHTS.md'
 
 permissions:
   contents: read

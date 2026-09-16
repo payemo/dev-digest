@@ -13,11 +13,13 @@ on:
       - 'reviewer-core/**'
       - 'server/src/vendor/shared/**'
       - '.github/workflows/reviewer-core.yml'
+      - '!**/INSIGHTS.md'
   pull_request:
     paths:
       - 'reviewer-core/**'
       - 'server/src/vendor/shared/**'
       - '.github/workflows/reviewer-core.yml'
+      - '!**/INSIGHTS.md'
 
 permissions:
   contents: read

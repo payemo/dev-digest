@@ -16,12 +16,14 @@ on:
       - 'server/**'
       - 'e2e/**'
       - '.github/workflows/e2e-web.yml'
+      - '!**/INSIGHTS.md'
   pull_request:
     paths:
       - 'client/**'
       - 'server/**'
       - 'e2e/**'
       - '.github/workflows/e2e-web.yml'
+      - '!**/INSIGHTS.md'
 
 permissions:
   contents: read

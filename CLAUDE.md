@@ -55,6 +55,18 @@ Only **Postgres** runs in Docker; API and web run on the host.
 - `.github/workflows/` — one workflow per test suite, each **path-filtered**.
 - Per package: `README.md` (diagrams/maps) · `docs/` · `specs/` ·
   `INSIGHTS.md` (append non-obvious findings here as they come up).
+- [`INSIGHTS.md`](INSIGHTS.md) at the root — the cross-cutting one, for findings
+  no single package owns.
+
+## Insights loop
+
+Each package has an `INSIGHTS.md` holding what its README and docs don't.
+**Read the one for the package you're about to work in, and treat it as
+high-confidence guidance unless it contradicts the code in front of you.**
+When you learn something non-obvious — mid-session, not only at the end —
+invoke the [`engineering-insights`](.claude/skills/engineering-insights/SKILL.md)
+skill to append it to the right file. The root [`INSIGHTS.md`](INSIGHTS.md) is
+for findings no package owns; read it only when working above package level.
 
 ## Non-default conventions
 
