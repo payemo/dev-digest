@@ -1,9 +1,10 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { and, desc, eq, inArray } from 'drizzle-orm';
-import type { PrMeta, PrDetail, GitHubClient, PrReviewComment } from '@devdigest/shared';
+import type { PrMeta, PrDetail, GitHubClient, PrReviewComment, Finding } from '@devdigest/shared';
 import { PrCommentInput } from '@devdigest/shared';
 import * as t from '../../db/schema.js';
+import { findingRowToDto } from '../reviews/helpers.js';
 import { getContext } from '../_shared/context.js';
 import { IdParams } from '../_shared/schemas.js';
 import { AppError, NotFoundError } from '../../platform/errors.js';
@@ -113,20 +114,41 @@ export default async function pullsRoutes(appBase: FastifyInstance) {
     }
 
     // Latest-review SCORE per PR for the list's score ring. Computed on read
-    // from reviews (no FK denorm); the list is small, so one IN-query + JS
-    // grouping is cheap. (The per-severity FINDINGS breakdown is intentionally
-    // not surfaced on the list — findings live on the PR detail page.)
+    // from reviews (no FK denorm); the list is small, so IN-queries + JS
+    // grouping are cheap.
     const prIds = rows.map((r) => r.id);
-    const latestReviewByPr = new Map<string, { score: number | null }>();
+    const latestReviewByPr = new Map<string, { id: string; score: number | null }>();
+    const reviewIdsByPr = new Map<string, string[]>();
     if (prIds.length > 0) {
       const reviewRows = await container.db
-        .select({ prId: t.reviews.prId, score: t.reviews.score })
+        .select({ id: t.reviews.id, prId: t.reviews.prId, score: t.reviews.score })
         .from(t.reviews)
         .where(and(inArray(t.reviews.prId, prIds), eq(t.reviews.kind, 'review')))
         .orderBy(desc(t.reviews.createdAt));
       // Rows are newest-first → first seen per PR is the latest review.
       for (const rv of reviewRows) {
-        if (!latestReviewByPr.has(rv.prId)) latestReviewByPr.set(rv.prId, { score: rv.score });
+        if (!latestReviewByPr.has(rv.prId)) {
+          latestReviewByPr.set(rv.prId, { id: rv.id, score: rv.score });
+        }
+        reviewIdsByPr.set(rv.prId, [...(reviewIdsByPr.get(rv.prId) ?? []), rv.id]);
+      }
+    }
+
+    // FINDINGS across EVERY review of the PR (not just the latest run) — the
+    // list's findings column + hover preview are a plain per-severity COUNT
+    // over ALL of a PR's findings, same group-by as the "N CRITICAL ·
+    // N WARNING · N SUGGESTION" pills on the PR detail page. No LLM call.
+    const findingsByReview = new Map<string, Finding[]>();
+    const allReviewIds = [...reviewIdsByPr.values()].flat();
+    if (allReviewIds.length > 0) {
+      const findingRows = await container.db
+        .select()
+        .from(t.findings)
+        .where(inArray(t.findings.reviewId, allReviewIds));
+      for (const f of findingRows) {
+        const list = findingsByReview.get(f.reviewId) ?? [];
+        list.push(findingRowToDto(f));
+        findingsByReview.set(f.reviewId, list);
       }
     }
 
@@ -180,6 +202,7 @@ export default async function pullsRoutes(appBase: FastifyInstance) {
         updated_at: r.updatedAt?.toISOString() ?? null,
         score: review ? review.score : null,
         cost_usd: sumRunCosts(runsByPr.get(r.id) ?? [], estimateCost),
+        findings: (reviewIdsByPr.get(r.id) ?? []).flatMap((id) => findingsByReview.get(id) ?? []),
       };
     });
   });

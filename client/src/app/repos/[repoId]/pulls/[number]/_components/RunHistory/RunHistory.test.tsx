@@ -5,9 +5,9 @@
  * and shows the review score ring.
  */
 import { describe, it, expect, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
-import type { RunSummary } from "@devdigest/shared";
+import type { RunSummary, Severity, FindingRecord } from "@devdigest/shared";
 import messages from "../../../../../../../../messages/en/prReview.json";
 import { RunHistory } from "./RunHistory";
 
@@ -35,10 +35,32 @@ function run(o: Partial<RunSummary>): RunSummary {
   };
 }
 
-function renderRuns(runs: RunSummary[]) {
+function finding(severity: Severity, o: Partial<FindingRecord> = {}): FindingRecord {
+  return {
+    id: `f-${severity}-${o.title ?? ""}`,
+    severity,
+    category: "security",
+    title: `${severity} finding`,
+    file: "src/config.ts",
+    start_line: 12,
+    end_line: 12,
+    rationale: "Because of reasons.",
+    suggestion: null,
+    confidence: 0.9,
+    kind: "finding",
+    trifecta_components: null,
+    evidence: null,
+    review_id: "r1",
+    accepted_at: null,
+    dismissed_at: null,
+    ...o,
+  };
+}
+
+function renderRuns(runs: RunSummary[], findingsByRun?: Map<string, FindingRecord[]>) {
   return render(
     <NextIntlClientProvider locale="en" messages={{ prReview: messages }}>
-      <RunHistory runs={runs} onOpenTrace={() => {}} />
+      <RunHistory runs={runs} findingsByRun={findingsByRun} onOpenTrace={() => {}} />
     </NextIntlClientProvider>,
   );
 }
@@ -72,6 +94,48 @@ describe("RunHistory — outcome badge", () => {
   it("a running run reads 'running'", () => {
     renderRuns([run({ status: "running", score: null, blockers: null })]);
     expect(screen.getByText("running")).toBeInTheDocument();
+  });
+});
+
+describe("RunHistory — findings by severity", () => {
+  it("breaks the findings total down per severity, skipping the empty ones", () => {
+    renderRuns(
+      [run({ status: "done", findings_count: 3, blockers: 2, score: 38 })],
+      new Map([
+        [
+          "run-1",
+          [
+            finding("CRITICAL", { id: "f1" }),
+            finding("CRITICAL", { id: "f2" }),
+            finding("SUGGESTION", { id: "f3" }),
+          ],
+        ],
+      ]),
+    );
+    // icon + count per severity, worst first — not a bare "3 finding(s)" total
+    expect(screen.queryByText(/3 finding/)).not.toBeInTheDocument();
+    expect(screen.getByText("2")).toBeInTheDocument(); // CRITICAL
+    expect(screen.getByText("1")).toBeInTheDocument(); // SUGGESTION
+    expect(screen.getByText(/2 blockers/)).toBeInTheDocument();
+  });
+
+  it("falls back to the run's own total when no findings are available", () => {
+    renderRuns([run({ status: "done", findings_count: 3, blockers: 0, score: 72 })]);
+    expect(screen.getByText(/3 finding/)).toBeInTheDocument();
+  });
+
+  it("previews the findings on hover, read-only — no accept/reject actions", async () => {
+    const { container } = renderRuns(
+      [run({ status: "done", findings_count: 1, blockers: 1, score: 38 })],
+      new Map([["run-1", [finding("CRITICAL", { id: "f1", title: "Hardcoded Stripe key" })]]]),
+    );
+    expect(screen.queryByText("Hardcoded Stripe key")).not.toBeInTheDocument();
+
+    fireEvent.mouseEnter(container.querySelector("[data-findings-summary]")!);
+    expect(await screen.findByRole("tooltip")).toBeInTheDocument();
+    expect(screen.getByText("Hardcoded Stripe key")).toBeInTheDocument();
+    expect(screen.getByText(/findings in this run/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /accept|reject/i })).not.toBeInTheDocument();
   });
 });
 

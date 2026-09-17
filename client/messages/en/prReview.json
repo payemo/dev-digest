@@ -4,7 +4,7 @@
     "dismissed": "dismissed",
     "suggestedFix": "Suggested fix",
     "accept": "Accept",
-    "dismiss": "Dismiss",
+    "dismiss": "Reject",
     "learn": "Learn",
     "replyToAuthor": "Reply to author",
     "replyPlaceholder": "Reply to the author about this finding…",
@@ -49,7 +49,7 @@
     "running": "running",
     "findings": "{count} finding(s)",
     "blockers": " · {count} blockers",
-    "usage": " · {tokens} tok · {cost}"
+    "usage": "{tokens} tok · {cost}"
   },
   "smartDiff": {
     "coreLabel": "Core",
@@ -92,6 +92,7 @@
       "author": "Author",
       "size": "Size",
       "score": "Score",
+      "findings": "Findings",
       "cost": "Cost",
       "status": "Status",
       "updated": "Updated"
@@ -102,6 +103,9 @@
     "emptyTitle": "No pull requests",
     "emptyAllBody": "No open PRs found for this repo yet. Refresh to sync from GitHub.",
     "emptyStatusBody": "No PRs with status “{status}”."
+  },
+  "findingsPopover": {
+    "title": "{count} findings in this run"
   },
   "timeline": {
     "goToReview": "Jump to this run’s findings below",

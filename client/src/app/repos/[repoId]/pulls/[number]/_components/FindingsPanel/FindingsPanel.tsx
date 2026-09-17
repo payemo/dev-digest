@@ -5,8 +5,10 @@
 import React from "react";
 import { useTranslations } from "next-intl";
 import { Toggle, EmptyState } from "@devdigest/ui";
-import type { FindingRecord } from "@devdigest/shared";
+import type { FindingRecord, Severity } from "@devdigest/shared";
 import { FindingCard } from "../FindingCard";
+import { SeverityCounters } from "../SeverityCounters";
+import { countBySeverity } from "@/components/findings-summary";
 import { useFindingAction } from "../../../../../../../lib/hooks/reviews";
 import { KEY_TO_ACTION } from "./constants";
 import { visibleFindings } from "./helpers";
@@ -26,9 +28,19 @@ export function FindingsPanel({
   const t = useTranslations("prReview");
   const action = useFindingAction();
   const [hideLow, setHideLow] = React.useState(false);
+  const [severityFilter, setSeverityFilter] = React.useState<Severity | null>(null);
   const [focusIdx, setFocusIdx] = React.useState(0);
 
-  const shown = React.useMemo(() => visibleFindings(findings, hideLow), [findings, hideLow]);
+  // Counters are tallied AFTER the confidence filter and before the severity
+  // one, so each pill always equals the number of cards listed below it.
+  const counts = React.useMemo(
+    () => countBySeverity(visibleFindings(findings, hideLow, null)),
+    [findings, hideLow],
+  );
+  const shown = React.useMemo(
+    () => visibleFindings(findings, hideLow, severityFilter),
+    [findings, hideLow, severityFilter],
+  );
 
   // j/k navigation + a/d shortcuts on the focused finding (keyboard).
   React.useEffect(() => {
@@ -47,6 +59,7 @@ export function FindingsPanel({
 
   return (
     <div>
+      <SeverityCounters counts={counts} active={severityFilter} onSelect={setSeverityFilter} />
       <div style={s.toolbar}>
         <div style={s.toggleGroup}>
           {t("panel.hideLowConfidence")}

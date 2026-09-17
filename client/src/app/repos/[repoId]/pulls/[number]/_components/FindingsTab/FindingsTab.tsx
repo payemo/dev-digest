@@ -70,6 +70,17 @@ export function FindingsTab({
     [prRuns],
   );
 
+  // Findings per run for the Timeline rows: agent_runs stores only a findings
+  // TOTAL, so both the severity split and the hover preview come from the
+  // reviews already loaded here. (The counters/filter live per accordion.)
+  const findingsByRun = React.useMemo(() => {
+    const byRun = new Map<string, FindingRecord[]>();
+    for (const review of runs) {
+      if (review.run_id) byRun.set(review.run_id, review.findings);
+    }
+    return byRun;
+  }, [runs]);
+
   // Timeline → Review-runs navigation: clicking an agent name in the timeline
   // opens + scrolls to that run's accordion below. The nonce re-triggers the
   // scroll even when the same run is clicked twice.
@@ -138,6 +149,7 @@ export function FindingsTab({
           <RunHistory
             runs={prRuns ?? []}
             commits={prCommits}
+            findingsByRun={findingsByRun}
             onOpenTrace={handleOpenTrace}
             onGoToReview={handleGoToReview}
             onDelete={handleDelete}
