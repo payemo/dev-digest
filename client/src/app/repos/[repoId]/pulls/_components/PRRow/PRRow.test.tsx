@@ -94,3 +94,16 @@ describe("PRRow — findings column", () => {
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
   });
 });
+
+describe("PRRow — cost column", () => {
+  it("shows the formatted cost when the PR has successful runs", () => {
+    renderRow(pr({ cost_usd: 0.0012 }));
+    expect(screen.getByText("$0.0012")).toBeInTheDocument();
+  });
+
+  it("falls back to a dash when the PR has no successful runs (cost_usd is null)", () => {
+    renderRow(pr({ cost_usd: null }));
+    expect(screen.getAllByText("—").length).toBeGreaterThan(0);
+    expect(screen.queryByText("$0.00")).not.toBeInTheDocument();
+  });
+});

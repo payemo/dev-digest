@@ -22,6 +22,12 @@ plays a flow's commands in order against one shared browser session.
 - `run.ts` — the runner; `lib/assert.ts` — assertion helpers.
 - `agent-browser.json` — CLI config.
 
+## Naming
+
+- Flows are `specs/NN-name.flow.json`, numbered in the order they're meant to
+  run (`01-app-boot` before `02-repo-pulls-detail`, etc.) — the number is a
+  run-order hint, not an id referenced elsewhere.
+
 ## Non-default conventions
 
 - Locators are deterministic only — `--url`, `--text`, `find role|text|label`.
@@ -43,6 +49,8 @@ plays a flow's commands in order against one shared browser session.
 - Never run `docker compose down -v` to "reset" for a flow — `-v` deletes the
   `devdigest_pgdata` volume, wiping every real repo/review you've imported,
   not just test data.
+- **Never hand-edit `package-lock.json`** — add/bump/remove deps with `npm`
+  so the lockfile stays consistent.
 
 ## More
 

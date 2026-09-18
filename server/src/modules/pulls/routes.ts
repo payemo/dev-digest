@@ -152,10 +152,11 @@ export default async function pullsRoutes(appBase: FastifyInstance) {
       }
     }
 
-    // Total COST across ALL runs of each PR. Computed on read, same one-IN-query
-    // + JS-grouping shape as the score above. Runs whose provider didn't report
-    // a cost are priced from model + tokens via the PriceBook (no extra model
-    // calls). A PR with no runs sums to 0 — always a number, never a dash.
+    // Total COST across every SUCCESSFUL run of each PR. Computed on read, same
+    // one-IN-query + JS-grouping shape as the score above. Runs whose provider
+    // didn't report a cost are priced from model + tokens via the PriceBook (no
+    // extra model calls). A PR with no successful runs sums to null — the list
+    // shows a dash, not a misleading "$0.00" for a PR nothing has priced yet.
     const runsByPr = new Map<string, RunCostInputs[]>();
     if (prIds.length > 0) {
       const runRows = await container.db
@@ -167,7 +168,13 @@ export default async function pullsRoutes(appBase: FastifyInstance) {
           costUsd: t.agentRuns.costUsd,
         })
         .from(t.agentRuns)
-        .where(and(eq(t.agentRuns.workspaceId, workspaceId), inArray(t.agentRuns.prId, prIds)));
+        .where(
+          and(
+            eq(t.agentRuns.workspaceId, workspaceId),
+            inArray(t.agentRuns.prId, prIds),
+            eq(t.agentRuns.status, 'done'),
+          ),
+        );
       for (const r of runRows) {
         if (!r.prId) continue; // prId is nullable (ON DELETE SET NULL)
         const list = runsByPr.get(r.prId) ?? [];

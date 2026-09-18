@@ -58,8 +58,8 @@ export function PRRow({ pr, repoId }: { pr: PrMeta; repoId: string }) {
       <div onClick={(e) => e.stopPropagation()} style={s.findingsCell}>
         <FindingsSummary findings={pr.findings ?? []} empty={<span style={s.muted}>—</span>} />
       </div>
-      <div className="tnum" style={s.costCell}>
-        {formatUsd(pr.cost_usd ?? 0)}
+      <div className="tnum" style={pr.cost_usd == null ? { ...s.costCell, ...s.muted } : s.costCell}>
+        {formatUsd(pr.cost_usd)}
       </div>
       <div>
         <Badge dot color={st.c} bg="transparent">

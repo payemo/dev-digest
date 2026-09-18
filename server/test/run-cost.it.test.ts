@@ -16,11 +16,16 @@ if (!hasDocker) {
 }
 
 /**
- * Run Cost Badge — the main correctness proof. The seed (deliberately left
- * untouched) creates PR #482 with zero `agent_runs`, so this test inserts its
- * own runs with KNOWN costs and asserts the exact numbers surfaced at every
- * read path: per-run (GET /pulls/:id/runs), per-PR sum (GET /repos/:id/pulls),
- * and trace-stats fallback (GET /runs/:id/trace) for a pre-cost-badge document.
+ * Run Cost Badge — the main correctness proof. This test inserts its own runs
+ * with KNOWN costs and asserts the exact numbers surfaced at every read path:
+ * per-run (GET /pulls/:id/runs), per-PR sum (GET /repos/:id/pulls), and
+ * trace-stats fallback (GET /runs/:id/trace) for a pre-cost-badge document.
+ *
+ * PR #482's seed is NOT run-less: `seedPr482Timeline` (server/src/db/seed.ts)
+ * gives it two already-`done` runs (Security Reviewer $0.0012, Performance
+ * Reviewer $0.0008) plus one `failed` run with no cost, so the PR-list sum
+ * assertion below folds those two seeded costs in alongside the ones this
+ * test inserts — don't assume PR #482 starts at $0.
  *
  * `MockSecretsProvider()` (all keys undefined) guarantees the PriceBook never
  * sees a real OPENROUTER_API_KEY, so it stays on the static price table — the
@@ -64,7 +69,7 @@ d('Run Cost Badge (PR-list SUM + per-run + trace fallback)', () => {
 
   const MODEL = 'deepseek/deepseek-v4-flash'; // priced in the static table: {in: 0.14, out: 0.28} per 1M
 
-  it('sums exactly across provider-reported, derived, and unknown-model runs — and a PR with none is 0, not null', async () => {
+  it('sums exactly across successful runs only — excludes failed runs, and a PR with none is null, not 0', async () => {
     // A: provider-reported cost wins over any derivation.
     const [runA] = await pg.handle.db
       .insert(t.agentRuns)
@@ -107,6 +112,20 @@ d('Run Cost Badge (PR-list SUM + per-run + trace fallback)', () => {
       status: 'failed',
       source: 'local',
     });
+    // D: FAILED run with a real reported cost on a priced model — if the PR-list
+    // sum didn't filter on status='done', this alone would push the total to
+    // 5.43. Proves the sum only counts successful runs, not just "unpriced → 0".
+    await pg.handle.db.insert(t.agentRuns).values({
+      workspaceId,
+      prId,
+      provider: 'openrouter',
+      model: MODEL,
+      tokensIn: 1_000,
+      tokensOut: 1_000,
+      costUsd: 5.0,
+      status: 'failed',
+      source: 'local',
+    });
     // A second, run-less PR on the same repo — must sum to 0, never null/dash.
     const [barePr] = await pg.handle.db
       .insert(t.pullRequests)
@@ -130,8 +149,9 @@ d('Run Cost Badge (PR-list SUM + per-run + trace fallback)', () => {
     const list = listRes.json() as { number: number; cost_usd: number | null }[];
     const pr482 = list.find((p) => p.number === 482);
     const pr9001 = list.find((p) => p.number === 9001);
-    expect(pr482?.cost_usd).toBeCloseTo(0.43, 6); // 0.01 + 0.42 + 0 — proves decision A, no double-count, unknown→0
-    expect(pr9001?.cost_usd).toBe(0); // no runs → 0, never null/dash
+    // 0.01 (A) + 0.42 (B, derived) + 0.0012 + 0.0008 (seeded Security/Performance runs on this PR) = 0.432 — runs C (unpriced) and D (failed, $5.00 reported) both excluded.
+    expect(pr482?.cost_usd).toBeCloseTo(0.432, 6);
+    expect(pr9001?.cost_usd).toBeNull(); // no successful runs → null, so the list shows a dash
 
     // ---- per-run values (GET /pulls/:id/runs) ------------------------------
     const runsRes = await app.inject({ method: 'GET', url: `/pulls/${prId}/runs` });

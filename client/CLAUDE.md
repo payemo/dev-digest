@@ -25,6 +25,24 @@ mocked, no real API/browser needed).
   server.
 - `messages/<locale>/*.json` — `next-intl` translations.
 
+## Naming
+
+- Route-colocated components: `_components/<PascalCase>/` holding
+  `<Name>.tsx`, an `index.ts` barrel, and `<Name>.test.tsx`, plus whichever of
+  `styles.ts` (exports `s`), `constants.ts`, `helpers.ts` a component needs.
+- Cross-route shared components use the same internal layout but live under
+  `src/components/<kebab-case>/` (e.g. `src/components/findings-summary/`),
+  not inside any one route's `_components/`.
+- Hooks are `use<Thing>` in `src/lib/hooks/*`, one TanStack Query hook per
+  server call (see [Non-default conventions](#non-default-conventions)).
+- Routes are `page.tsx`; dynamic segments are bracketed
+  (`[repoId]`, `[number]`).
+- i18n keys are dotted camelCase in `messages/<locale>/<area>.json`
+  (`panel.hideLowConfidence`, `runStatus.usage`).
+- **API DTO fields are snake_case** (`cost_usd`, `start_line`) straight from
+  `@devdigest/shared`; local component props/state stay camelCase — that
+  casing seam marks the wire boundary, it isn't a style slip.
+
 ## Non-default conventions
 
 - Never `fetch` directly from a component — add/extend a hook in
@@ -43,6 +61,8 @@ mocked, no real API/browser needed).
 
 - Don't duplicate a UI primitive that already exists under `src/vendor/ui` —
   it's vendored, not generated per-feature.
+- **Never hand-edit `pnpm-lock.yaml`** — add/bump/remove deps with `pnpm`
+  so the lockfile stays consistent.
 
 ## More
 
