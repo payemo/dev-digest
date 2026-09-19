@@ -11,8 +11,7 @@ description: >
 ---
 
 Knowledge that dies with the session gets re-derived next session. This skill
-moves one finding out of the conversation and into the file where the next agent
-working on that code will read it.
+moves one finding out of the conversation and into the file where the next agent working on that code will read it.
 
 Write **as you go**, not only at the end — a wrap-up you have to remember is a
 wrap-up you will skip.

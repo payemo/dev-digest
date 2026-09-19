@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Icon, Avatar, Badge, CircularScore } from "@devdigest/ui";
 import type { PrMeta } from "@/lib/types";
+import { FindingsSummary } from "@/components/findings-summary";
 import { formatUsd } from "@/lib/format";
 import { SIZE_COLOR, STATUS_META } from "../../constants";
 import { relativeTime, sizeOf } from "../../helpers";
@@ -54,8 +55,11 @@ export function PRRow({ pr, repoId }: { pr: PrMeta; repoId: string }) {
           <span style={s.muted}>—</span>
         )}
       </div>
-      <div className="tnum" style={s.costCell}>
-        {formatUsd(pr.cost_usd ?? 0)}
+      <div onClick={(e) => e.stopPropagation()} style={s.findingsCell}>
+        <FindingsSummary findings={pr.findings ?? []} empty={<span style={s.muted}>—</span>} />
+      </div>
+      <div className="tnum" style={pr.cost_usd == null ? { ...s.costCell, ...s.muted } : s.costCell}>
+        {formatUsd(pr.cost_usd)}
       </div>
       <div>
         <Badge dot color={st.c} bg="transparent">

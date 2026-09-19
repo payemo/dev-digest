@@ -1,9 +1,10 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { and, desc, eq, inArray } from 'drizzle-orm';
-import type { PrMeta, PrDetail, GitHubClient, PrReviewComment } from '@devdigest/shared';
+import type { PrMeta, PrDetail, GitHubClient, PrReviewComment, Finding } from '@devdigest/shared';
 import { PrCommentInput } from '@devdigest/shared';
 import * as t from '../../db/schema.js';
+import { findingRowToDto } from '../reviews/helpers.js';
 import { getContext } from '../_shared/context.js';
 import { IdParams } from '../_shared/schemas.js';
 import { AppError, NotFoundError } from '../../platform/errors.js';
@@ -113,27 +114,65 @@ export default async function pullsRoutes(appBase: FastifyInstance) {
     }
 
     // Latest-review SCORE per PR for the list's score ring. Computed on read
-    // from reviews (no FK denorm); the list is small, so one IN-query + JS
-    // grouping is cheap. (The per-severity FINDINGS breakdown is intentionally
-    // not surfaced on the list — findings live on the PR detail page.)
+    // from reviews (no FK denorm); the list is small, so IN-queries + JS
+    // grouping are cheap.
     const prIds = rows.map((r) => r.id);
-    const latestReviewByPr = new Map<string, { score: number | null }>();
+    const latestReviewByPr = new Map<string, { id: string; score: number | null }>();
+    const reviewIdsByPr = new Map<string, string[]>();
+    const latestReviewIdByPrAgent = new Map<string, string>();
     if (prIds.length > 0) {
       const reviewRows = await container.db
-        .select({ prId: t.reviews.prId, score: t.reviews.score })
+        .select({
+          id: t.reviews.id,
+          prId: t.reviews.prId,
+          score: t.reviews.score,
+          agentId: t.reviews.agentId,
+        })
         .from(t.reviews)
         .where(and(inArray(t.reviews.prId, prIds), eq(t.reviews.kind, 'review')))
         .orderBy(desc(t.reviews.createdAt));
-      // Rows are newest-first → first seen per PR is the latest review.
+      // Rows are newest-first → first seen per PR is the latest review
+      // overall (score), and first seen per PR+agent is that agent's latest
+      // run (findings — see below).
       for (const rv of reviewRows) {
-        if (!latestReviewByPr.has(rv.prId)) latestReviewByPr.set(rv.prId, { score: rv.score });
+        if (!latestReviewByPr.has(rv.prId)) {
+          latestReviewByPr.set(rv.prId, { id: rv.id, score: rv.score });
+        }
+        const agentKey = `${rv.prId}::${rv.agentId ?? ''}`;
+        if (!latestReviewIdByPrAgent.has(agentKey)) {
+          latestReviewIdByPrAgent.set(agentKey, rv.id);
+          reviewIdsByPr.set(rv.prId, [...(reviewIdsByPr.get(rv.prId) ?? []), rv.id]);
+        }
       }
     }
 
-    // Total COST across ALL runs of each PR. Computed on read, same one-IN-query
-    // + JS-grouping shape as the score above. Runs whose provider didn't report
-    // a cost are priced from model + tokens via the PriceBook (no extra model
-    // calls). A PR with no runs sums to 0 — always a number, never a dash.
+    // FINDINGS summed per AGENT's latest run, across every agent that has
+    // run on the PR — not every review ever run. A re-run of the same agent
+    // no longer stacks its stale findings on top of its newer ones (only its
+    // most recent run counts); different agents each still contribute their
+    // own latest run independently, so an earlier agent's severe findings
+    // aren't hidden by a later, less-severe agent's run (see
+    // server/specs/pr-cost-and-findings.md). No LLM call — `reviewIdsByPr`
+    // above already holds only the latest-per-agent review ids.
+    const findingsByReview = new Map<string, Finding[]>();
+    const allReviewIds = [...reviewIdsByPr.values()].flat();
+    if (allReviewIds.length > 0) {
+      const findingRows = await container.db
+        .select()
+        .from(t.findings)
+        .where(inArray(t.findings.reviewId, allReviewIds));
+      for (const f of findingRows) {
+        const list = findingsByReview.get(f.reviewId) ?? [];
+        list.push(findingRowToDto(f));
+        findingsByReview.set(f.reviewId, list);
+      }
+    }
+
+    // Total COST across every SUCCESSFUL run of each PR. Computed on read, same
+    // one-IN-query + JS-grouping shape as the score above. Runs whose provider
+    // didn't report a cost are priced from model + tokens via the PriceBook (no
+    // extra model calls). A PR with no successful runs sums to null — the list
+    // shows a dash, not a misleading "$0.00" for a PR nothing has priced yet.
     const runsByPr = new Map<string, RunCostInputs[]>();
     if (prIds.length > 0) {
       const runRows = await container.db
@@ -145,7 +184,13 @@ export default async function pullsRoutes(appBase: FastifyInstance) {
           costUsd: t.agentRuns.costUsd,
         })
         .from(t.agentRuns)
-        .where(and(eq(t.agentRuns.workspaceId, workspaceId), inArray(t.agentRuns.prId, prIds)));
+        .where(
+          and(
+            eq(t.agentRuns.workspaceId, workspaceId),
+            inArray(t.agentRuns.prId, prIds),
+            eq(t.agentRuns.status, 'done'),
+          ),
+        );
       for (const r of runRows) {
         if (!r.prId) continue; // prId is nullable (ON DELETE SET NULL)
         const list = runsByPr.get(r.prId) ?? [];
@@ -180,6 +225,7 @@ export default async function pullsRoutes(appBase: FastifyInstance) {
         updated_at: r.updatedAt?.toISOString() ?? null,
         score: review ? review.score : null,
         cost_usd: sumRunCosts(runsByPr.get(r.id) ?? [], estimateCost),
+        findings: (reviewIdsByPr.get(r.id) ?? []).flatMap((id) => findingsByReview.get(id) ?? []),
       };
     });
   });

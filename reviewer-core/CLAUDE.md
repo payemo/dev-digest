@@ -26,6 +26,13 @@ package.
 - `src/index.ts` — the package's entire public surface; contracts
   (`Review`, `Finding`, `Verdict`) come from `@devdigest/shared`, not here.
 
+## Naming
+
+- One lowercase, single-purpose module per file (`prompt.ts`, `grounding.ts`),
+  named after the concern it owns, not the type it exports.
+- The public surface is re-exported from `src/index.ts` only — nothing else
+  in this package is meant to be imported directly by `server`.
+
 ## Non-default conventions
 
 - Never add a DB/GitHub/filesystem call in this package — if a feature needs
@@ -47,6 +54,8 @@ package.
 
 - Don't give this package a real network/DB dependency — everything external
   goes through the injected `LLMProvider`.
+- **Never hand-edit `package-lock.json`** — add/bump/remove deps with `npm`
+  so the lockfile stays consistent.
 
 ## More
 

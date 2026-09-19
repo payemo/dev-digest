@@ -48,8 +48,8 @@ describe('effectiveRunCost', () => {
 });
 
 describe('sumRunCosts', () => {
-  it('is 0 for an empty list — never null, never a dash', () => {
-    expect(sumRunCosts([], estimate)).toBe(0);
+  it('is null for an empty list — no successful runs to price, so the list shows a dash', () => {
+    expect(sumRunCosts([], estimate)).toBeNull();
   });
 
   it('sums provider-reported and derived costs together', () => {

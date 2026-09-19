@@ -35,12 +35,14 @@ export function effectiveRunCost(row: RunCostInputs, estimate: Estimator): numbe
 }
 
 /**
- * Total USD cost across a PR's runs. ALWAYS a number: a run whose model isn't
- * priced contributes 0 (never breaks the sum), and an empty list is 0 — so the
- * PR list always shows "$0.00" for a PR with no cost data, never a dash.
+ * Total USD cost across a PR's successful runs. Callers must pass only
+ * `status: 'done'` rows — a run whose model isn't priced still contributes 0
+ * (never breaks the sum), but an EMPTY list returns null (no successful runs
+ * to price), so the PR list shows a dash, never a misleading "$0.00".
  * Rounded to 1e-6 so repeated float addition doesn't leak as 0.43000000000000005.
  */
-export function sumRunCosts(rows: RunCostInputs[], estimate: Estimator): number {
+export function sumRunCosts(rows: RunCostInputs[], estimate: Estimator): number | null {
+  if (rows.length === 0) return null;
   const total = rows.reduce((sum, row) => sum + (effectiveRunCost(row, estimate) ?? 0), 0);
   return Math.round(total * 1e6) / 1e6;
 }

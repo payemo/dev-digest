@@ -3,7 +3,8 @@
 import React from "react";
 import { useTranslations } from "next-intl";
 import { Badge, Icon, CircularScore, type IconName } from "@devdigest/ui";
-import type { RunSummary, PrCommit } from "@devdigest/shared";
+import type { RunSummary, PrCommit, FindingRecord } from "@devdigest/shared";
+import { FindingsSummary } from "@/components/findings-summary";
 import { formatTokenCount, formatUsd } from "@/lib/format";
 
 /**
@@ -88,12 +89,17 @@ function tsOf(s: string | null | undefined): number {
 export function RunHistory({
   runs,
   commits = [],
+  findingsByRun,
   onOpenTrace,
   onGoToReview,
   onDelete,
 }: {
   runs: RunSummary[];
   commits?: PrCommit[];
+  /** Findings of each run keyed by run_id — the run row itself only carries a
+   *  total, so the severity split (and its hover preview) comes from here.
+   *  Missing entry → fall back to that total. */
+  findingsByRun?: Map<string, FindingRecord[]>;
   /** Open the trace + log drawer for a run (the logs icon). */
   onOpenTrace: (runId: string) => void;
   /** Jump to this run's inline review accordion below (clicking the agent name). */
@@ -150,6 +156,7 @@ export function RunHistory({
         const r = item.run;
         const o = outcomeOf(r);
         const settled = r.status === "done";
+        const runFindings = findingsByRun?.get(r.run_id) ?? [];
         return (
           <div key={`run:${r.run_id}`} style={rowStyle}>
             <Badge color={o.color} bg={o.bg} icon={o.icon}>
@@ -190,22 +197,27 @@ export function RunHistory({
                 </div>
               )}
               {settled && (
-                <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                  {t("runStatus.findings", { count: r.findings_count ?? 0 })}
-                  {(r.blockers ?? 0) > 0 ? t("runStatus.blockers", { count: r.blockers ?? 0 }) : ""}
-                  {(r.tokens_in != null || r.tokens_out != null) && (
-                    <span className="tnum">
-                      {t("runStatus.usage", {
-                        tokens: formatTokenCount((r.tokens_in ?? 0) + (r.tokens_out ?? 0)),
-                        cost: formatUsd(r.cost_usd),
-                      })}
-                    </span>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--text-muted)" }}>
+                  <FindingsSummary
+                    findings={runFindings}
+                    empty={<span>{t("runStatus.findings", { count: r.findings_count ?? 0 })}</span>}
+                  />
+                  {(r.blockers ?? 0) > 0 && (
+                    <span>{t("runStatus.blockers", { count: r.blockers ?? 0 })}</span>
                   )}
                 </div>
               )}
             </div>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2, fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>
               {r.ran_at && <span>{new Date(r.ran_at).toLocaleTimeString()}</span>}
+              {settled && (r.tokens_in != null || r.tokens_out != null) && (
+                <span className="tnum">
+                  {t("runStatus.usage", {
+                    tokens: formatTokenCount((r.tokens_in ?? 0) + (r.tokens_out ?? 0)),
+                    cost: formatUsd(r.cost_usd),
+                  })}
+                </span>
+              )}
             </div>
             <button
               type="button"
