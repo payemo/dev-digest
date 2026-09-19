@@ -21,7 +21,16 @@ Evidence: `server/src/db/seed.ts` (the `existingRun` guard before `seedPr482Time
 
 ## Codebase Patterns
 
-_Nothing yet._
+### 2026-09-19 — A `reviews` row only ever exists for a successful run
+
+`insertReview` has exactly one call site, and it sits *inside* the `try`
+block of `runOneAgent`, right before the success-path `completeAgentRun(status:
+'done')` — the `catch` block (failure/cancellation) never reaches it. So a
+`reviews` row implies its producing `agent_runs` row was `status: 'done'` at
+insert time; joining `reviews.run_id → agent_runs.id` to filter on `status`
+is a no-op and unnecessary when aggregating findings/scores by review.
+Evidence: `server/src/modules/reviews/run-executor.ts:219` (insert) vs `:244`
+(success) and `:300-311` (failure/cancel, no insert).
 
 ## Tool & Library Notes
 

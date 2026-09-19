@@ -119,25 +119,41 @@ export default async function pullsRoutes(appBase: FastifyInstance) {
     const prIds = rows.map((r) => r.id);
     const latestReviewByPr = new Map<string, { id: string; score: number | null }>();
     const reviewIdsByPr = new Map<string, string[]>();
+    const latestReviewIdByPrAgent = new Map<string, string>();
     if (prIds.length > 0) {
       const reviewRows = await container.db
-        .select({ id: t.reviews.id, prId: t.reviews.prId, score: t.reviews.score })
+        .select({
+          id: t.reviews.id,
+          prId: t.reviews.prId,
+          score: t.reviews.score,
+          agentId: t.reviews.agentId,
+        })
         .from(t.reviews)
         .where(and(inArray(t.reviews.prId, prIds), eq(t.reviews.kind, 'review')))
         .orderBy(desc(t.reviews.createdAt));
-      // Rows are newest-first → first seen per PR is the latest review.
+      // Rows are newest-first → first seen per PR is the latest review
+      // overall (score), and first seen per PR+agent is that agent's latest
+      // run (findings — see below).
       for (const rv of reviewRows) {
         if (!latestReviewByPr.has(rv.prId)) {
           latestReviewByPr.set(rv.prId, { id: rv.id, score: rv.score });
         }
-        reviewIdsByPr.set(rv.prId, [...(reviewIdsByPr.get(rv.prId) ?? []), rv.id]);
+        const agentKey = `${rv.prId}::${rv.agentId ?? ''}`;
+        if (!latestReviewIdByPrAgent.has(agentKey)) {
+          latestReviewIdByPrAgent.set(agentKey, rv.id);
+          reviewIdsByPr.set(rv.prId, [...(reviewIdsByPr.get(rv.prId) ?? []), rv.id]);
+        }
       }
     }
 
-    // FINDINGS across EVERY review of the PR (not just the latest run) — the
-    // list's findings column + hover preview are a plain per-severity COUNT
-    // over ALL of a PR's findings, same group-by as the "N CRITICAL ·
-    // N WARNING · N SUGGESTION" pills on the PR detail page. No LLM call.
+    // FINDINGS summed per AGENT's latest run, across every agent that has
+    // run on the PR — not every review ever run. A re-run of the same agent
+    // no longer stacks its stale findings on top of its newer ones (only its
+    // most recent run counts); different agents each still contribute their
+    // own latest run independently, so an earlier agent's severe findings
+    // aren't hidden by a later, less-severe agent's run (see
+    // server/specs/pr-cost-and-findings.md). No LLM call — `reviewIdsByPr`
+    // above already holds only the latest-per-agent review ids.
     const findingsByReview = new Map<string, Finding[]>();
     const allReviewIds = [...reviewIdsByPr.values()].flat();
     if (allReviewIds.length > 0) {
