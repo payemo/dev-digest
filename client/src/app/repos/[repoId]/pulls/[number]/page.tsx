@@ -18,6 +18,7 @@ import RunTraceDrawer from "./_components/RunTraceDrawer";
 import { usePullDetail, usePulls } from "../../../../../lib/hooks";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePrReviews, useCancelRun, usePrActiveRuns, usePrRuns, useDeleteRun } from "../../../../../lib/hooks/reviews";
+import { reviewKeys } from "../../../../../lib/hooks/keys";
 import { useActiveRepo, useRepoNotFound } from "../../../../../lib/repo-context";
 import { ApiError } from "../../../../../lib/api";
 import { githubPrUrl } from "../../../../../lib/github-urls";
@@ -47,15 +48,7 @@ export default function PRDetailPage() {
   const deleteRun = useDeleteRun(prId);
   const liveRunIds = (activeRuns ?? []).map((r) => r.run_id);
   const reviewRunning = liveRunIds.length > 0;
-  const cancel = useCancelRun();
-  const invalidateActiveRuns = () => {
-    if (prId) qc.invalidateQueries({ queryKey: ["pr-active-runs", prId] });
-  };
-  // When a run settles (done OR failed) refresh the full run history too, so a
-  // just-failed run shows up in "Run history" immediately — no page reload.
-  const invalidateRunHistory = () => {
-    if (prId) qc.invalidateQueries({ queryKey: ["pr-runs", prId] });
-  };
+  const cancel = useCancelRun(prId);
 
   const tab = search.get("tab") ?? "overview";
   const traceRunId = search.get("trace");
@@ -130,7 +123,6 @@ export default function PRDetailPage() {
         githubUrl={repoFullName ? githubPrUrl(repoFullName, pr.number) : null}
         onSetTab={setTab}
         onRunStart={() => setTab("findings")}
-        onRunsStarted={() => invalidateActiveRuns()}
       />
 
       <div style={{ padding: "24px 32px 44px", display: "flex", flexDirection: "column", gap: 24, maxWidth: 1080, margin: "0 auto" }}>
@@ -154,8 +146,11 @@ export default function PRDetailPage() {
                 deleteRun.mutate(id);
             }}
             onRunDone={() => {
-              invalidateActiveRuns();
-              invalidateRunHistory();
+              // A run finishing is reported over SSE (RunStatus → onDone),
+              // not a mutation success, so it needs its own invalidation —
+              // through the shared key factory, not a hand-built array.
+              qc.invalidateQueries({ queryKey: reviewKeys.activeRuns(prId) });
+              qc.invalidateQueries({ queryKey: reviewKeys.runs(prId) });
               refetchReviews();
             }}
           />

@@ -138,7 +138,9 @@ export function ConfigTab({ agent }: { agent: Agent }) {
           {update.isPending ? t("config.saving") : t("config.save")}
         </Button>
         {update.isSuccess && (
-          <span style={s.savedNote}>{t("config.saved", { version: update.data?.version })}</span>
+          <span style={s.savedNote} role="status" aria-live="polite">
+            {t("config.saved", { version: update.data?.version })}
+          </span>
         )}
       </div>
     </div>

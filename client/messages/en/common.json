@@ -17,5 +17,17 @@
     "title": "No repo selected",
     "body": "This repository isn't in your workspace — it may have been removed, or the link is stale. Add a repo or pick another from the switcher to get started.",
     "cta": "Add repository"
+  },
+  "crash": {
+    "title": "Something went wrong",
+    "body": "An unexpected error occurred while rendering this page. You can try again, or head back to the dashboard.",
+    "retry": "Try again",
+    "home": "Go to dashboard",
+    "backTo": "Back to {label}"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "body": "The page you're looking for doesn't exist, or it may have moved.",
+    "cta": "Go to dashboard"
   }
 }

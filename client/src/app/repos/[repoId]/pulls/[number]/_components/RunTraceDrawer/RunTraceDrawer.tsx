@@ -51,11 +51,18 @@ export default function RunTraceDrawer({
   // Copy the model's raw output to the clipboard (footer button), with a brief
   // visual confirmation. Disabled until the trace (and its raw output) loads.
   const [rawCopied, setRawCopied] = React.useState(false);
+  const rawCopiedTimer = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  React.useEffect(() => {
+    // The drawer is closable well within this window — clear a pending
+    // "revert" timer on unmount instead of letting it fire regardless.
+    return () => clearTimeout(rawCopiedTimer.current);
+  }, []);
   const copyRaw = () => {
     if (!trace?.raw_output) return;
     void navigator.clipboard?.writeText(trace.raw_output);
+    clearTimeout(rawCopiedTimer.current);
     setRawCopied(true);
-    setTimeout(() => setRawCopied(false), 1500);
+    rawCopiedTimer.current = setTimeout(() => setRawCopied(false), 1500);
   };
 
   const log: LogLine[] = eventsToLog(events);

@@ -34,7 +34,7 @@ export function RunStatus({
   }));
 
   return (
-    <div style={s.wrap}>
+    <div style={s.wrap} role="log" aria-live="polite" aria-atomic="false">
       <LiveLogStream
         log={log}
         running={running}

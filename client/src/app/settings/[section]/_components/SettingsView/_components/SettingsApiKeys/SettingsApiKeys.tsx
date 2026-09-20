@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useTranslations } from "next-intl";
-import { Button, Icon, FormField, TextInput } from "@devdigest/ui";
+import { Button, Icon, IconBtn, FormField, TextInput } from "@devdigest/ui";
 import { useTestConnection, useSecretsStatus } from "../../../../../../../lib/hooks";
 import { ApiError } from "../../../../../../../lib/api";
 import type { ConnTestProvider } from "../../../../../../../lib/types";
@@ -60,7 +60,12 @@ function KeyRow({
             type={reveal ? "text" : "password"}
             placeholder={t("apiKeys.placeholder")}
             suffix={
-              <Icon.EyeOff size={14} style={s.revealIcon} onClick={() => setReveal((r) => !r)} />
+              <IconBtn
+                icon={reveal ? "Eye" : "EyeOff"}
+                label={t(reveal ? "apiKeys.hideKey" : "apiKeys.showKey")}
+                size={22}
+                onClick={() => setReveal((r) => !r)}
+              />
             }
           />
         </div>
@@ -69,7 +74,7 @@ function KeyRow({
         </Button>
       </div>
       {res && (
-        <div style={s.result(res.ok)}>
+        <div style={s.result(res.ok)} role="status" aria-live="polite">
           {res.ok ? <Icon.CheckCircle size={13} /> : <Icon.XCircle size={13} />}
           {res.message}
         </div>

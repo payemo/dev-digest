@@ -105,6 +105,7 @@ export function AddRepoView() {
 
         {error && (
           <div
+            role="alert"
             style={{
               display: "flex",
               alignItems: "center",
