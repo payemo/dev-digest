@@ -34,9 +34,46 @@ Evidence: `server/src/modules/reviews/run-executor.ts:219` (insert) vs `:244`
 
 ## Tool & Library Notes
 
-_Nothing yet._
+### 2026-09-20 — `exclude: node_modules` makes every dependency-cruiser npm rule pass vacuously
+
+`exclude` removes matching modules from the graph entirely, so a rule whose
+`to` names an npm package (`fastify`, `drizzle-orm`, …) matches nothing and the
+whole config reports "no dependency violations found" while enforcing nothing.
+Use `doNotFollow` — it keeps the node and only skips traversal into it. Always
+confirm a new rule fires by introducing a deliberate violation.
+Evidence: `server/.dependency-cruiser.cjs` (`options.doNotFollow`, and the
+comment above it).
+
+### 2026-09-20 — Under pnpm, an anchored package regex in a depcruise `to.path` never matches
+
+`to.path` is tested against the *resolved* path. pnpm resolves to
+`node_modules/.pnpm/fastify@5.8.5/node_modules/fastify/fastify.js`, so `^fastify`
+matches nothing. Match the trailing segment instead — `node_modules/(fastify)/`
+— which is correct on both pnpm and npm. `server/.dependency-cruiser.cjs` wraps
+this in a `pkg(...names)` helper.
+Evidence: `server/.dependency-cruiser.cjs:41` (`const pkg = ...`).
+
+### 2026-09-20 — `no-circular` needs `viaOnly.dependencyTypesNot`, not `to.dependencyTypesNot`, to ignore type-only cycles
+
+`to.dependencyTypesNot: ['type-only']` filters only the cycle's *first* hop, so
+a cycle whose first edge is a value import still reports even when a later hop
+is type-only. `to.viaOnly.dependencyTypesNot: ['type-only']` requires *every*
+hop to be non-type-only, which is what "ignore compile-time-erased cycles"
+actually means. This matters here because `import type { Container }` in a
+service and `import type { FooRow } from './repository.js'` in a helper both
+create type-only cycles by design.
+Evidence: `server/.dependency-cruiser.cjs` (the `no-circular` rule).
 
 ## Recurring Errors & Fixes
+
+### 2026-09-20 — depcruise: "has an unsafe regular expression. Bailing out."
+
+dependency-cruiser runs a ReDoS check over every rule regex and refuses the
+whole run — not just the rule — when one has a nested quantifier.
+`^src/modules/[^/]+/repository(/[^/]+)?\.ts$` is rejected. Split it into an
+array of two plain alternatives (`.../repository\.ts$` and
+`.../repository/[^/]+\.ts$`); `path` accepts a string or an array.
+Evidence: `server/.dependency-cruiser.cjs` (`const REPOSITORY`).
 
 ### 2026-09-18 — An integration test's fixture assumptions go stale silently when a shared seed changes
 
