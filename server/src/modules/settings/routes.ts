@@ -72,6 +72,10 @@ export default async function settingsRoutes(appBase: FastifyInstance) {
       config: { rateLimit: { max: 20, timeWindow: '1 minute' } },
     },
     async (req): Promise<ConnTestResult> => {
+    // Every other authenticated route resolves context first; this was the
+    // one exception, and it's the one that *writes* a secret (below) —
+    // skipping it is exactly how a cross-workspace write gets in.
+    await getContext(container, req);
     const { provider, key } = req.body;
     try {
       // If the UI supplied a key, persist it (BYO key) before testing so the

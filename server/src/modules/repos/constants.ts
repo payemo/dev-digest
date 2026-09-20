@@ -12,10 +12,16 @@ export const CLONE_DEPTH = 1;
 export const GITHUB_TOKEN_SECRET = 'GITHUB_TOKEN';
 
 /**
- * Parse `owner`/`repo` from a GitHub URL — supports both
+ * Parse `owner`/`repo` from a GitHub URL. Anchored at both ends so a URL
+ * cannot carry extra scheme/host/path around a `github.com/owner/repo`
+ * substring — e.g. `ext::sh -c id github.com/a/b` (git `ext::` transport
+ * shells out) or `http://169.254.169.254/…/github.com/a/b` (SSRF) both fail
+ * to match, instead of silently extracting `a/b` and being handed to `git
+ * clone` verbatim. Supports the two forms we actually accept:
  * `https://github.com/owner/repo(.git)` and `git@github.com:owner/repo.git`.
  */
-export const GITHUB_URL_REGEX = /github\.com[/:]([^/]+)\/([^/.]+)(?:\.git)?\/?$/;
+export const GITHUB_HTTPS_URL_REGEX = /^https:\/\/github\.com\/([^/]+)\/([^/.]+)(?:\.git)?\/?$/;
+export const GITHUB_SSH_URL_REGEX = /^git@github\.com:([^/]+)\/([^/.]+)(?:\.git)?$/;
 
 /** Username embedded into an authenticated https github.com clone URL. */
 export const GIT_TOKEN_USERNAME = 'x-access-token';

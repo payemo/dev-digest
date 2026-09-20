@@ -2,7 +2,8 @@ import { type Repo } from '@devdigest/shared';
 import * as t from '../../db/schema.js';
 import { AppError } from '../../platform/errors.js';
 import {
-  GITHUB_URL_REGEX,
+  GITHUB_HTTPS_URL_REGEX,
+  GITHUB_SSH_URL_REGEX,
   GIT_TOKEN_USERNAME,
   GITHUB_HTTPS_HOST,
 } from './constants.js';
@@ -12,14 +13,24 @@ import {
  * Pure functions only — no I/O, no DB, no container.
  */
 
-/** Parse `owner`/`name` from a GitHub URL (https or ssh form). */
+/**
+ * Parse `owner`/`name` from a GitHub URL (https or ssh form). Anchored
+ * matching only — see the regexes' own comments for why. Anything that
+ * isn't exactly one of the two accepted forms is rejected, not sanitized.
+ */
 export function parseRepoUrl(url: string): { owner: string; name: string } {
   // https://github.com/owner/repo(.git)  |  git@github.com:owner/repo.git
-  const match = url.match(GITHUB_URL_REGEX);
+  const match = url.match(GITHUB_HTTPS_URL_REGEX) ?? url.match(GITHUB_SSH_URL_REGEX);
   if (!match?.[1] || !match[2]) {
     throw new AppError('invalid_repo_url', `Could not parse owner/repo from '${url}'`, 400);
   }
   return { owner: match[1], name: match[2] };
+}
+
+/** Canonical, safe-to-clone https URL for a parsed owner/name — never the
+ *  caller's raw input, so nothing but `owner`/`name` reaches `git clone`. */
+export function canonicalCloneUrl(owner: string, name: string): string {
+  return `https://${GITHUB_HTTPS_HOST}/${owner}/${name}.git`;
 }
 
 /**

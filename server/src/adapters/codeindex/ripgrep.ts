@@ -57,7 +57,19 @@ export class RipgrepCodeIndex implements CodeIndex {
   private grepWithRg(rg: string, root: string, pattern: string): Promise<CodeMatch[]> {
     return new Promise((resolve, reject) => {
       const matches: CodeMatch[] = [];
-      const proc = spawn(rg, ['--line-number', '--no-heading', '--color=never', pattern, root]);
+      // `--` stops ripgrep from parsing `pattern` as a flag — without it, a
+      // pattern starting with `-` (e.g. `--pre=<cmd>`) runs as a ripgrep
+      // preprocessor option, which is RCE. `grep()` has no callers today
+      // (public `CodeIndex` API, one route away from being reachable), so
+      // this is hardening ahead of that, not a fix for a live path.
+      const proc = spawn(rg, [
+        '--line-number',
+        '--no-heading',
+        '--color=never',
+        '--',
+        pattern,
+        root,
+      ]);
       let buf = '';
       proc.stdout.on('data', (d) => {
         buf += d.toString();
@@ -81,7 +93,19 @@ export class RipgrepCodeIndex implements CodeIndex {
   }
 
   private async grepWithNode(root: string, pattern: string): Promise<CodeMatch[]> {
-    const re = new RegExp(pattern);
+    // Same "no callers today, hardening ahead of that" note as grepWithRg's
+    // `--` fix: `pattern` reaches `new RegExp` unescaped, so an overlong or
+    // pathological pattern (catastrophic backtracking) is a ReDoS surface
+    // once this path is wired to a route. The length cap bounds the obvious
+    // case; the try/catch covers a pattern that isn't valid regex syntax.
+    const MAX_PATTERN_LENGTH = 500;
+    if (pattern.length > MAX_PATTERN_LENGTH) return [];
+    let re: RegExp;
+    try {
+      re = new RegExp(pattern);
+    } catch {
+      return [];
+    }
     const matches: CodeMatch[] = [];
     for (const file of await this.walk(root)) {
       const content = await readFile(file, 'utf8').catch(() => '');
