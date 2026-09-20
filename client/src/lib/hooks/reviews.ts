@@ -4,9 +4,11 @@
 
 import React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { z } from "zod";
 import { api, API_BASE } from "../api";
 import { notify } from "../toast";
 import { reviewKeys } from "./keys";
+import { PrReviewComment as PrReviewCommentSchema } from "@devdigest/shared";
 import type {
   FindingActionKind,
   PrReviewComment,
@@ -100,7 +102,7 @@ export function useDeleteReview(prId: string | null | undefined) {
 export function usePrComments(prId: string | null | undefined) {
   return useQuery({
     queryKey: reviewKeys.comments(prId),
-    queryFn: () => api.get<PrReviewComment[]>(`/pulls/${prId}/comments`),
+    queryFn: () => api.get<PrReviewComment[]>(`/pulls/${prId}/comments`, z.array(PrReviewCommentSchema)),
     enabled: !!prId,
   });
 }
@@ -118,7 +120,7 @@ export function useCreatePrComment(prId: string | null | undefined) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateCommentInput) =>
-      api.post<PrReviewComment>(`/pulls/${prId}/comments`, input),
+      api.post<PrReviewComment>(`/pulls/${prId}/comments`, input, PrReviewCommentSchema),
     onSuccess: () => qc.invalidateQueries({ queryKey: reviewKeys.comments(prId) }),
   });
 }

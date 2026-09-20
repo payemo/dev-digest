@@ -47,19 +47,14 @@ const pkg = (...names) => `node_modules/(${names.join('|')})/`;
  * editing one of these files anyway, extract the queries you touch into a
  * `repository.ts` and delete the entry.
  *
- *   pulls     — 397 lines, ~12 inline queries; the worst case
- *   polling   — no service or repository
  *   settings  — no service; feature-models.ts also queries directly
  *   workspace — no service or repository
+ *
+ * `pulls` and `polling` were the worst case (397 lines, 18 inline queries,
+ * duplicated between the two) — extracted into pulls/repository.ts +
+ * pulls/service.ts.
  */
-const LEGACY_DB_IN_ROUTES =
-  '^src/modules/(pulls|polling|settings|workspace)/(routes|feature-models)\\.ts$';
-
-/**
- * `repos/helpers.ts` imports `db/schema` to name one row type in `toRepoDto`.
- * Fix: add `RepoRow` to `src/db/rows.ts` and `import type` it instead.
- */
-const LEGACY_SCHEMA_IN_HELPERS = '^src/modules/repos/helpers\\.ts$';
+const LEGACY_DB_IN_ROUTES = '^src/modules/(settings|workspace)/(routes|feature-models)\\.ts$';
 
 /** Files allowed to name Fastify — the HTTP edge, and nothing else. */
 const HTTP_EDGE = [
@@ -132,10 +127,7 @@ module.exports = {
         'helpers.ts is pure. A row type belongs in src/db/rows.ts and is ' +
         'imported type-only. See SKILL.md §4/§5.',
       severity: 'error',
-      from: {
-        path: '^src/modules/[^/]+/helpers\\.ts$',
-        pathNot: LEGACY_SCHEMA_IN_HELPERS,
-      },
+      from: { path: '^src/modules/[^/]+/helpers\\.ts$' },
       to: { path: ['^src/db/schema', DRIZZLE] },
     },
     {
@@ -145,6 +137,28 @@ module.exports = {
       severity: 'error',
       from: { path: '^src/modules/[^/]+/helpers\\.ts$' },
       to: { path: '^src/platform/container\\.ts$' },
+    },
+    {
+      name: 'no-db-outside-repository',
+      comment:
+        'Closes the blind spot the three rules above leave: they only match ' +
+        "routes.ts/service.ts/helpers.ts, so a module's other application-layer " +
+        'files (run-executor.ts, diff-loader.ts, findings.ts, a repo-intel ' +
+        'pipeline stage, …) could add a raw query and stay green. Only a ' +
+        "module's repository.ts touches Drizzle/schema — everything else calls " +
+        'it. See SKILL.md §2/§3.',
+      severity: 'error',
+      from: {
+        path: '^src/modules/[^/]+/',
+        pathNot: [
+          ...REPOSITORY,
+          '^src/modules/[^/]+/routes\\.ts$',
+          '^src/modules/[^/]+/service\\.ts$',
+          '^src/modules/[^/]+/helpers\\.ts$',
+          LEGACY_DB_IN_ROUTES,
+        ],
+      },
+      to: { path: ['^src/db/schema', DRIZZLE] },
     },
 
     // ---- Infrastructure --------------------------------------------------

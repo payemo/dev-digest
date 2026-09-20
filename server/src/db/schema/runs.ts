@@ -21,7 +21,9 @@ export const agentRuns = pgTable('agent_runs', {
   /** Provider-reported billed cost (e.g. OpenRouter's usage.cost); null when
    *  the provider didn't report one — derived on read from model + tokens. */
   costUsd: doublePrecision('cost_usd'),
-  status: text('status'),
+  status: text('status', { enum: ['running', 'done', 'failed', 'cancelled'] })
+    .notNull()
+    .default('running'),
   /** Failure reason when status='failed' (LLM/API error, timeout, quota, …). */
   error: text('error'),
   source: text('source', { enum: ['local', 'ci'] }).notNull().default('local'),

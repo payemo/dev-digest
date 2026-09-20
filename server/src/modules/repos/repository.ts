@@ -1,13 +1,13 @@
 import { and, eq } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import * as t from '../../db/schema.js';
+import type { RepoRow } from '../../db/rows.js';
+export type { RepoRow };
 
 /**
  * F1 — repos data-access layer. The ONLY place that touches the `repos`
  * table. Every query is scoped by `workspaceId` (tenancy guard).
  */
-
-export type RepoRow = typeof t.repos.$inferSelect;
 
 export interface InsertRepo {
   workspaceId: string;
@@ -75,6 +75,11 @@ export class RepoRepository {
       .update(t.repos)
       .set({ clonePath, lastPolledAt: new Date() })
       .where(eq(t.repos.id, repoId));
+  }
+
+  /** Bump `last_polled_at` after a manual PR-list sync (no clone involved). */
+  async touchPolled(repoId: string): Promise<void> {
+    await this.db.update(t.repos).set({ lastPolledAt: new Date() }).where(eq(t.repos.id, repoId));
   }
 
   async remove(workspaceId: string, id: string): Promise<boolean> {
