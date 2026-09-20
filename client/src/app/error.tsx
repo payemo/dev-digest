@@ -24,7 +24,7 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
   return (
     <AppShell>
       <ErrorState fullScreen title={t("crash.title")} body={t("crash.body")} onRetry={reset} />
-      <div style={{ display: "flex", justifyContent: "center", marginTop: -8, paddingBottom: 24 }}>
+      <div className="flex justify-center -mt-2 pb-6">
         <Button kind="ghost" size="sm" onClick={() => router.push("/")}>
           {t("crash.home")}
         </Button>
