@@ -95,10 +95,10 @@ export class ReviewService {
    * so cancel also works for ORPHANED runs (whose background process died on a
    * server restart) where signalling alone would do nothing.
    */
-  async cancelRun(runId: string): Promise<void> {
+  async cancelRun(workspaceId: string, runId: string): Promise<void> {
     this.publish(runId, 'info', 'Cancellation requested — stopping…');
     this.container.runBus.cancel(runId);
-    await this.repo.cancelRunIfRunning(runId);
+    await this.repo.cancelRunIfRunning(workspaceId, runId);
     this.container.runBus.complete(runId);
   }
 
@@ -191,8 +191,8 @@ export class ReviewService {
    * key at all; new failed-run traces have it as `null`. Both derive it from
    * `config.model` + `stats` tokens on read — never mutated back to storage.
    */
-  async getRunTrace(runId: string): Promise<RunTrace | undefined> {
-    const trace = await this.repo.getRunTrace(runId);
+  async getRunTrace(workspaceId: string, runId: string): Promise<RunTrace | undefined> {
+    const trace = await this.repo.getRunTrace(workspaceId, runId);
     if (!trace) return undefined;
     if (trace.stats.cost_usd != null) return trace;
     const estimate: Estimator = (m, i, o) => this.container.priceBook.estimate(m, i, o);
