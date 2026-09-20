@@ -16,7 +16,7 @@
     "sourceMap": true,
     "composite": false,
     "outDir": "dist",
-    "types": ["node"],
+    "types": ["node", "vitest/globals"],
     "lib": ["ES2022"],
     "paths": {
       "@devdigest/shared": ["./src/vendor/shared/index.ts"],
@@ -25,5 +25,12 @@
       "@devdigest/reviewer-core/*": ["../reviewer-core/src/*"]
     }
   },
-  "include": ["src/**/*.ts"]
+  // test/** and vitest.config.ts are included so `pnpm typecheck` (tsc
+  // --noEmit) actually checks the suite — it didn't before, which is how
+  // several `as unknown as` casts in test/ went uncaught. `pnpm build` (tsc,
+  // no --noEmit) will now also try to EMIT them into dist/ alongside src/;
+  // harmless today since dist/server.js can't run regardless (see the
+  // improvement plan's note on `build`/`start` being broken already), but
+  // worth a dedicated build-only tsconfig if that gets fixed.
+  "include": ["src/**/*.ts", "test/**/*.ts", "vitest.config.ts"]
 }

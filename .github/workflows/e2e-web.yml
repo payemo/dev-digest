@@ -6,6 +6,10 @@
 #
 # No API keys: loadConfig() marks every secret optional, so the API boots and
 # serves the seeded read-only data the specs exercise — no LLM is called.
+#
+# reviewer-core/** is in the path filter because the API loads its raw source
+# at runtime (see the "Install reviewer-core deps" step below) — a
+# reviewer-core-only PR can break API boot without touching client/ or server/.
 name: e2e web
 
 on:
@@ -14,6 +18,7 @@ on:
     paths:
       - 'client/**'
       - 'server/**'
+      - 'reviewer-core/**'
       - 'e2e/**'
       - '.github/workflows/e2e-web.yml'
       - '!**/INSIGHTS.md'
@@ -21,6 +26,7 @@ on:
     paths:
       - 'client/**'
       - 'server/**'
+      - 'reviewer-core/**'
       - 'e2e/**'
       - '.github/workflows/e2e-web.yml'
       - '!**/INSIGHTS.md'
@@ -51,6 +57,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+
+      # Fast, Docker-free — fail before spending time booting the stack if
+      # e2e/'s own TS (run.ts, lib/**) doesn't type-check. This wasn't run
+      # anywhere before; `npm run typecheck` exists in e2e/package.json but
+      # nothing invoked it.
+      - name: Typecheck e2e
+        working-directory: e2e
+        run: |
+          npm ci
+          npm run typecheck
 
       # --- Postgres (pgvector) via the repo's compose file ---
       - name: Start Postgres

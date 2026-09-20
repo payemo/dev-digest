@@ -173,9 +173,10 @@ export const PrMeta = z.object({
   score: z.number().int().nullish(),
   // Total cost across ALL runs of this PR (list endpoint only; 0 when no runs).
   cost_usd: z.number().nullish(),
-  // ALL findings across every review of this PR — not just the latest run
-  // (list endpoint only; empty until reviewed). Drives the list's FINDINGS
-  // column (severity counts) and its hover preview.
+  // Each agent's LATEST run's findings, summed across every agent that has
+  // run on this PR — a re-run of the same agent doesn't stack its stale
+  // findings (list endpoint only; empty until reviewed). Drives the list's
+  // FINDINGS column (severity counts) and its hover preview.
   findings: z.array(Finding).nullish(),
 });
 export type PrMeta = z.infer<typeof PrMeta>;

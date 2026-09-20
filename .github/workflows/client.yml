@@ -2,6 +2,13 @@
 # Typecheck + component/unit tests (vitest + jsdom). Hermetic: no API, no DB,
 # no browser — fetch is mocked in the tests. The full-stack browser flow lives
 # in e2e-web.yml.
+#
+# client/src/vendor/shared is a PHYSICAL COPY of server/src/vendor/shared (not
+# a build artifact or a symlink — see root CLAUDE.md's "one contract source"
+# note, which describes the intent, not the current mechanism). The `contracts
+# must match` step below is what actually keeps the two in sync; that's also
+# why server/src/vendor/shared/** is in the path filter — a server-only PR
+# that edits a contract must still run this check.
 name: client
 
 on:
@@ -9,11 +16,13 @@ on:
     branches: [main]
     paths:
       - 'client/**'
+      - 'server/src/vendor/shared/**'
       - '.github/workflows/client.yml'
       - '!**/INSIGHTS.md'
   pull_request:
     paths:
       - 'client/**'
+      - 'server/src/vendor/shared/**'
       - '.github/workflows/client.yml'
       - '!**/INSIGHTS.md'
 
@@ -33,6 +42,15 @@ jobs:
         working-directory: client
     steps:
       - uses: actions/checkout@v4
+
+      # No deps needed — fail fast before spending an install on a stale copy.
+      - name: client/src/vendor/shared must match server's copy
+        working-directory: ${{ github.workspace }}
+        run: |
+          diff -r client/src/vendor/shared server/src/vendor/shared || {
+            echo "::error::client/src/vendor/shared has drifted from server/src/vendor/shared. Copy server's version over client's (both directories, contract-for-contract) and commit that."
+            exit 1
+          }
 
       - uses: pnpm/action-setup@v4
         with:

@@ -129,7 +129,10 @@ cd ../client && pnpm install && pnpm dev               # web on :3000
 ## Useful scripts
 
 `server/`: `dev` · `build` · `db:migrate` · `db:seed` · `db:generate` · `test` · `typecheck`
-(unit/integration split: `pnpm exec vitest run --exclude '**/*.it.test.ts'` / `pnpm exec vitest run .it.test`)
+(unit/integration split: `pnpm exec vitest run --exclude '**/*.it.test.ts'` / `pnpm exec vitest run .it.test`).
+`pnpm dev` (`tsx`) is the only supported way to run the API — `build`'s
+output isn't runnable via `node` as-is (path aliases aren't rewritten); it's
+useful as a type-check + emit step, not a deploy artifact.
 `client/`: `dev` · `build` · `start` · `test` · `typecheck`
 
 ## Testing & CI
