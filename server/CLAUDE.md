@@ -9,7 +9,12 @@ in tests.
 
 ## Commands
 
-- `pnpm dev` — serve on `:3001`. `pnpm build` / `pnpm typecheck`.
+- `pnpm dev` — serve on `:3001` via `tsx`. This is the only supported way to
+  run the API — `pnpm build` (plain `tsc`) doesn't rewrite the `@devdigest/*`
+  path aliases in its output, so `pnpm start`/`node dist/server.js` fails
+  with `ERR_MODULE_NOT_FOUND`. `build` still has diagnostic value (it
+  type-checks + emits) but its `dist/` isn't runnable as-is.
+- `pnpm typecheck`.
 - `pnpm db:migrate` / `pnpm db:seed` / `pnpm db:generate` (Drizzle Kit).
 - `pnpm test` — unit + integration. Unit is DB-free (adapters mocked); a
   `*.it.test.ts` file is DB-backed (real Postgres via testcontainers) and

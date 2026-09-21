@@ -2,11 +2,10 @@ import type { Container } from '../../platform/container.js';
 import type { Provider, Review, RunTrace, UnifiedDiff } from '@devdigest/shared';
 import { reviewPullRequest, countBlockers } from '@devdigest/reviewer-core';
 import { RunLogger } from '../../platform/run-logger.js';
-import * as schema from '../../db/schema.js';
-import type { AgentRow } from '../../db/rows.js';
+import type { AgentRow, RepoRow } from '../../db/rows.js';
 import type { ReviewRepository, FindingRow, PullRow, ReviewRow } from './repository.js';
 import { REVIEW_STRATEGY } from './constants.js';
-import { taskLine } from './helpers.js';
+import { selectInjectableSkills, taskLine, type InjectableSkills } from './helpers.js';
 import { loadDiff } from './diff-loader.js';
 
 /** Thrown by a run when the user cancels it mid-flight (between map files). */
@@ -55,7 +54,7 @@ export class ReviewRunExecutor {
   async executeRuns(
     workspaceId: string,
     pull: PullRow,
-    repo: typeof schema.repos.$inferSelect,
+    repo: RepoRow,
     jobs: { agent: AgentRow; runId: string }[],
     logger?: Logger,
   ): Promise<void> {
@@ -139,7 +138,7 @@ export class ReviewRunExecutor {
   private async runOneAgent(
     workspaceId: string,
     pull: PullRow,
-    repo: typeof schema.repos.$inferSelect,
+    repo: RepoRow,
     diff: UnifiedDiff,
     agent: AgentRow,
     runId: string,
@@ -182,6 +181,21 @@ export class ReviewRunExecutor {
       const repoMap = repoIntelOn ? await this.buildRepoMapDigest(pull.repoId, runLog) : undefined;
       const rankNote = repoIntelOn ? await this.buildRankNote(pull.repoId, diff, runLog) : '';
 
+      // Skills — the agent's linked rule bodies. NOT gated by agent.repoIntel:
+      // that flag scopes repo-intel enrichment only, and a skill is a rule the
+      // user attached by hand, not derived context.
+      const skillCtx = await this.buildSkillContext(agent.id, runLog);
+      if (skillCtx) {
+        // Attribution is recorded BEFORE the model call, so a run that later
+        // fails still records what went into its prompt. A failure here must
+        // never fail the review — stats can drift, a review cannot be lost.
+        await this.repo
+          .recordRunSkills(runId, skillCtx.skillIds)
+          .catch((err: unknown) =>
+            runLog.error(`skills: attribution write failed — ${(err as Error).message}`),
+          );
+      }
+
       const task = taskLine(pull) + rankNote;
 
       // ---- Engine: assemble → single-pass → grounding -----------------------
@@ -201,6 +215,10 @@ export class ReviewRunExecutor {
         ...(callersDigest ? { callers: callersDigest } : {}),
         // T3 — repo skeleton, same omit-when-empty contract.
         ...(repoMap ? { repoMap } : {}),
+        // Linked skill bodies, enabled only, in the user's configured order.
+        // assemblePrompt omits the `## Skills / rules` section when absent, so
+        // an agent with no skills gets a byte-identical prompt to before.
+        ...(skillCtx ? { skills: skillCtx.bodies } : {}),
         // PR author's description/body — untrusted; assemblePrompt wraps +
         // truncates it. Omitted when the PR has no body.
         ...(pull.body ? { prDescription: pull.body } : {}),
@@ -315,6 +333,50 @@ export class ReviewRunExecutor {
       this.container.runBus.complete(runId);
       throw err;
     }
+  }
+
+  /**
+   * Resolve the agent's linked skills into prompt bodies + the ids to attribute
+   * the run to.
+   *
+   * Best-effort like the other enrichments: any failure degrades to `undefined`
+   * and the `## Skills / rules` section is simply omitted, leaving a prompt
+   * byte-identical to the pre-skills one. A broken skill lookup must not cost
+   * the user a review.
+   *
+   * Only ENABLED skills are injected. The log line reports both what went in
+   * and what was skipped, so "I disabled it and it stopped reaching the model"
+   * is verifiable from the Live Log and the persisted trace, not just inferred.
+   */
+  private async buildSkillContext(
+    agentId: string,
+    runLog: RunLogger,
+  ): Promise<InjectableSkills | undefined> {
+    let links;
+    try {
+      links = await this.agents.linkedSkills(agentId);
+    } catch (err) {
+      runLog.info(`skills: lookup failed — ${(err as Error).message}`);
+      return undefined;
+    }
+    if (links.length === 0) return undefined;
+
+    const selected = selectInjectableSkills(links);
+    const skippedNote =
+      selected.skipped.length > 0
+        ? ` (disabled, not injected: ${selected.skipped.join(', ')})`
+        : '';
+
+    if (selected.bodies.length === 0) {
+      runLog.info(`skills: 0 of ${selected.total} linked skill(s) injected${skippedNote}`);
+      return undefined;
+    }
+
+    runLog.info(
+      `skills: ${selected.bodies.length} of ${selected.total} linked skill(s) injected — ` +
+        `${selected.names.join(', ')}${skippedNote}`,
+    );
+    return selected;
   }
 
   /**

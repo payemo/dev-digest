@@ -5,6 +5,8 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { z } from "zod";
+import { PrMeta as PrMetaSchema, PrDetail as PrDetailSchema } from "@devdigest/shared";
 import { api } from "../api";
 import type {
   Settings,
@@ -102,7 +104,7 @@ export function useDeleteRepo() {
 export function usePulls(repoId: string | null | undefined) {
   return useQuery({
     queryKey: ["pulls", repoId],
-    queryFn: () => api.get<PrMeta[]>(`/repos/${repoId}/pulls`),
+    queryFn: () => api.get<PrMeta[]>(`/repos/${repoId}/pulls`, z.array(PrMetaSchema)),
     enabled: !!repoId,
     // Auto-refresh PR statuses: re-sync from GitHub every 60s while the page is
     // open, and whenever the window regains focus.
@@ -114,7 +116,7 @@ export function usePulls(repoId: string | null | undefined) {
 export function usePullDetail(prId: string | number | null | undefined) {
   return useQuery({
     queryKey: ["pull", prId],
-    queryFn: () => api.get<PrDetail>(`/pulls/${prId}`),
+    queryFn: () => api.get<PrDetail>(`/pulls/${prId}`, PrDetailSchema),
     enabled: prId != null,
   });
 }

@@ -69,20 +69,16 @@ export async function listRunsForPull(
 }
 
 /**
- * Delete one agent run (+ its trace via FK cascade) AND the review it produced.
- * Workspace-scoped. `reviews.run_id` has no FK to `agent_runs`, so the review
- * (and its findings, which DO cascade from `reviews`) must be removed explicitly
- * here — otherwise deleting a run from the timeline leaves its findings orphaned
- * in the Review Runs list below.
+ * Delete one agent run, workspace-scoped. `reviews.run_id` FK-cascades onto
+ * `agent_runs.id`, and `findings.review_id` cascades onto `reviews.id` in
+ * turn, so the review this run produced (and its findings) go with it in
+ * this one statement — no separate delete, no partial-failure window.
  */
 export async function deleteAgentRun(
   db: Db,
   workspaceId: string,
   runId: string,
 ): Promise<boolean> {
-  await db
-    .delete(t.reviews)
-    .where(and(eq(t.reviews.runId, runId), eq(t.reviews.workspaceId, workspaceId)));
   const rows = await db
     .delete(t.agentRuns)
     .where(and(eq(t.agentRuns.id, runId), eq(t.agentRuns.workspaceId, workspaceId)))
@@ -90,12 +86,23 @@ export async function deleteAgentRun(
   return rows.length > 0;
 }
 
-/** Mark a still-running run as cancelled (no-op if it already finished). */
-export async function cancelRunIfRunning(db: Db, runId: string): Promise<boolean> {
+/** Mark a still-running run as cancelled (no-op if it already finished).
+ *  Workspace-scoped, like every other mutation on agent_runs in this file. */
+export async function cancelRunIfRunning(
+  db: Db,
+  workspaceId: string,
+  runId: string,
+): Promise<boolean> {
   const rows = await db
     .update(t.agentRuns)
     .set({ status: 'cancelled' })
-    .where(and(eq(t.agentRuns.id, runId), eq(t.agentRuns.status, 'running')))
+    .where(
+      and(
+        eq(t.agentRuns.id, runId),
+        eq(t.agentRuns.workspaceId, workspaceId),
+        eq(t.agentRuns.status, 'running'),
+      ),
+    )
     .returning({ id: t.agentRuns.id });
   return rows.length > 0;
 }
@@ -175,6 +182,26 @@ export async function completeAgentRun(
     .where(eq(t.agentRuns.id, runId));
 }
 
+/**
+ * Record which skills went into this run's prompt.
+ *
+ * Written at prompt-assembly time from the ENABLED subset of the agent's linked
+ * skills, so it reflects what was injected rather than what was configured. A
+ * run that later fails still carries correct attribution, because the fact
+ * became true before the model was ever called.
+ */
+export async function recordRunSkills(
+  db: Db,
+  runId: string,
+  skillIds: string[],
+): Promise<void> {
+  if (skillIds.length === 0) return;
+  await db
+    .insert(t.runSkills)
+    .values(skillIds.map((skillId, i) => ({ runId, skillId, order: i })))
+    .onConflictDoNothing();
+}
+
 /** Persist the WHOLE run log as ONE document. PK = runId → agent_runs. */
 export async function saveRunTrace(db: Db, runId: string, trace: RunTrace): Promise<void> {
   await db
@@ -183,7 +210,18 @@ export async function saveRunTrace(db: Db, runId: string, trace: RunTrace): Prom
     .onConflictDoUpdate({ target: t.runTraces.runId, set: { trace } });
 }
 
-export async function getRunTrace(db: Db, runId: string): Promise<RunTrace | undefined> {
-  const [row] = await db.select().from(t.runTraces).where(eq(t.runTraces.runId, runId));
+/** Workspace-scoped: a run trace is the whole run document (system prompt,
+ *  full PR diff, raw model output), so it must never be readable across a
+ *  workspace boundary by guessing a runId. */
+export async function getRunTrace(
+  db: Db,
+  workspaceId: string,
+  runId: string,
+): Promise<RunTrace | undefined> {
+  const [row] = await db
+    .select({ trace: t.runTraces.trace })
+    .from(t.runTraces)
+    .innerJoin(t.agentRuns, eq(t.agentRuns.id, t.runTraces.runId))
+    .where(and(eq(t.runTraces.runId, runId), eq(t.agentRuns.workspaceId, workspaceId)));
   return row ? (row.trace as RunTrace) : undefined;
 }

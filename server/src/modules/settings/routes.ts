@@ -49,15 +49,17 @@ export default async function settingsRoutes(appBase: FastifyInstance) {
   app.put('/settings', { schema: { body: SettingsUpdate } }, async (req) => {
     const { workspaceId, userId } = await getContext(container, req);
     const body = req.body;
-    for (const [key, value] of Object.entries(body)) {
-      await container.db
-        .insert(t.settings)
-        .values({ workspaceId, userId, key, value })
-        .onConflictDoUpdate({
-          target: [t.settings.workspaceId, t.settings.userId, t.settings.key],
-          set: { value },
-        });
-    }
+    await container.db.transaction(async (tx) => {
+      for (const [key, value] of Object.entries(body)) {
+        await tx
+          .insert(t.settings)
+          .values({ workspaceId, userId, key, value })
+          .onConflictDoUpdate({
+            target: [t.settings.workspaceId, t.settings.userId, t.settings.key],
+            set: { value },
+          });
+      }
+    });
     const rows = await container.db
       .select()
       .from(t.settings)
@@ -72,6 +74,10 @@ export default async function settingsRoutes(appBase: FastifyInstance) {
       config: { rateLimit: { max: 20, timeWindow: '1 minute' } },
     },
     async (req): Promise<ConnTestResult> => {
+    // Every other authenticated route resolves context first; this was the
+    // one exception, and it's the one that *writes* a secret (below) —
+    // skipping it is exactly how a cross-workspace write gets in.
+    await getContext(container, req);
     const { provider, key } = req.body;
     try {
       // If the UI supplied a key, persist it (BYO key) before testing so the

@@ -95,10 +95,10 @@ export class ReviewService {
    * so cancel also works for ORPHANED runs (whose background process died on a
    * server restart) where signalling alone would do nothing.
    */
-  async cancelRun(runId: string): Promise<void> {
+  async cancelRun(workspaceId: string, runId: string): Promise<void> {
     this.publish(runId, 'info', 'Cancellation requested — stopping…');
     this.container.runBus.cancel(runId);
-    await this.repo.cancelRunIfRunning(runId);
+    await this.repo.cancelRunIfRunning(workspaceId, runId);
     this.container.runBus.complete(runId);
   }
 
@@ -174,13 +174,9 @@ export class ReviewService {
     const pull = await this.repo.getPull(workspaceId, prId);
     if (!pull) throw new NotFoundError('Pull request not found');
     const rows = await this.repo.reviewsForPull(prId);
-    const names = new Map<string, string>();
-    for (const { review } of rows) {
-      if (review.agentId && !names.has(review.agentId)) {
-        const a = await this.agents.getById(workspaceId, review.agentId);
-        if (a) names.set(review.agentId, a.name);
-      }
-    }
+    const agentIds = [...new Set(rows.map((r) => r.review.agentId).filter((id): id is string => id != null))];
+    const agentsFound = await this.agents.listByIds(workspaceId, agentIds);
+    const names = new Map(agentsFound.map((a) => [a.id, a.name]));
     return rows.map(({ review, findings }) =>
       reviewToDto(review, findings, review.agentId ? names.get(review.agentId) : null),
     );
@@ -191,8 +187,8 @@ export class ReviewService {
    * key at all; new failed-run traces have it as `null`. Both derive it from
    * `config.model` + `stats` tokens on read — never mutated back to storage.
    */
-  async getRunTrace(runId: string): Promise<RunTrace | undefined> {
-    const trace = await this.repo.getRunTrace(runId);
+  async getRunTrace(workspaceId: string, runId: string): Promise<RunTrace | undefined> {
+    const trace = await this.repo.getRunTrace(workspaceId, runId);
     if (!trace) return undefined;
     if (trace.stats.cost_usd != null) return trace;
     const estimate: Estimator = (m, i, o) => this.container.priceBook.estimate(m, i, o);

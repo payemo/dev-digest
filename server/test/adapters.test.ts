@@ -34,7 +34,7 @@ describe('mock adapters (no network)', () => {
 
   it('MockCodeIndex + MockEmbedder return deterministic shapes', async () => {
     const ci = new MockCodeIndex();
-    expect((await ci.symbols({ owner: 'a', name: 'b' }))[0]!.name).toBe('rateLimit');
+    expect((await ci.symbols())[0]!.name).toBe('rateLimit');
     const emb = await new MockEmbedder().embed(['a', 'b']);
     expect(emb[0]!).toHaveLength(1536);
   });

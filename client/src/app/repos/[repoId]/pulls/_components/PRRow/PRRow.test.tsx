@@ -4,7 +4,7 @@
  * preview on hover (accept/reject live on the PR page, not here).
  */
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import type { PrMeta, Finding } from "@devdigest/shared";
 import messages from "../../../../../../../messages/en/prReview.json";
@@ -67,12 +67,15 @@ describe("PRRow — findings column", () => {
     expect(screen.queryByText("Hardcoded Stripe key")).not.toBeInTheDocument();
 
     fireEvent.mouseEnter(container.querySelector("[data-findings-summary]")!);
-    expect(await screen.findByRole("tooltip")).toBeInTheDocument();
+    const tooltip = await screen.findByRole("tooltip");
+    expect(tooltip).toBeInTheDocument();
     expect(screen.getByText(/1 findings in this run/i)).toBeInTheDocument();
     expect(screen.getByText("Hardcoded Stripe key")).toBeInTheDocument();
     expect(screen.getByText("src/config.ts:12")).toBeInTheDocument();
-    // read-only: the preview never offers accept/reject
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    // read-only: the preview never offers accept/reject. Scoped to the
+    // tooltip itself — the row is keyboard-navigable (role="button") now,
+    // which is unrelated to whether the PREVIEW offers any action.
+    expect(within(tooltip).queryByRole("button")).not.toBeInTheDocument();
   });
 
   it("sums findings across every review run, not just the latest one", async () => {

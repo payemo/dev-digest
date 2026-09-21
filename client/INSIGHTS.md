@@ -37,9 +37,61 @@ once "hide low confidence" is toggled. Tally after the confidence filter and
 before the severity filter instead.
 Evidence: `client/src/app/repos/[repoId]/pulls/[number]/_components/FindingsPanel/FindingsPanel.tsx:34-39`.
 
+### 2026-09-21 — A nav item's display label has no single source of truth — the sidebar and the command palette each translate it differently
+
+`vendor/ui/shell/NavItem.tsx` prints `item.label` and `Sidebar.tsx` prints
+`grp.section` RAW (not through next-intl) straight from the literal strings in
+`vendor/ui/nav.ts`. The command palette instead re-translates the same item via
+`t(\`nav.${it.key}\`)` from `messages/en/shell.json`. Renaming a nav item means
+editing both `nav.ts`'s literal and `shell.json`'s `nav.<key>` — there's no
+single place that owns the label.
+Evidence: `client/src/vendor/ui/shell/NavItem.tsx:54`;
+`client/src/components/app-shell/hooks/useShellCommands.ts:24`.
+
+### 2026-09-21 — Pre-scaffolded i18n copy in this repo can describe an intended design, not the actual pipeline — verify against reviewer-core before trusting it
+
+`messages/en/skills.json`'s `file.bodyHint` and `preview.untrustedNotice`
+(written before the Skills feature was implemented) claimed skill bodies are
+"wrapped as untrusted data" — but `reviewer-core/src/prompt.ts`'s
+`assemblePrompt` never wraps the skills block; it's injected as trusted
+instructions. Don't treat scaffolded UI copy as a source of truth for a
+security/trust claim — check the actual prompt-assembly code.
+Evidence: `client/messages/en/skills.json` (`editor.config.vettingHint`, fixed
+in the 2026-09-21 skills feature); `reviewer-core/src/prompt.ts:39-73`.
+
+### 2026-09-21 — `Markdown`'s headings/lists had no component overrides, so the global `h1..h4,p { margin: 0 }` reset zeroed their spacing
+
+`vendor/ui/primitives/Markdown.tsx` only styled `p`/`strong`/`code`/`a`; a
+rendered `###`/`- ` body fell back to UA-default heading/list styling on top
+of `styles.css:205-211`'s margin reset, so headings sat flush against
+surrounding text with no visual hierarchy. Any new element type passed
+through react-markdown needs its own override here, not just a global CSS
+tweak — the global reset zeroes `h1-h4`/`p` margins repo-wide on purpose.
+Evidence: `client/src/vendor/ui/primitives/Markdown.tsx`;
+`client/src/vendor/ui/styles.css:205-211`.
+
 ## Tool & Library Notes
 
-_Nothing yet._
+### 2026-09-21 — `@devdigest/ui`'s `Donut` is built for money, not counts — `MetricCard`'s `suffix` is for a short unit, not a sentence
+
+`charts/Donut.tsx` hardcodes `valuePrefix="$"` and `.toFixed(2)` on every
+segment value — using it for an integer breakdown (e.g. findings by category)
+renders "12.00" with a stray "$". Use `BarRow` (label + bar + a plain integer
+suffix) for count data instead. Separately, `MetricCard`'s `suffix` prop
+renders directly appended after the big value in the same row/font with no
+gap — it's for "%"/"ms", not an explanatory phrase like "12 of 40 runs"; put
+that in your own `<span>` below the card instead.
+Evidence: `client/src/vendor/ui/charts/Donut.tsx` (`valuePrefix = "$"`);
+`client/src/vendor/ui/charts/MetricCard.tsx` (the `suffix` span, same font row
+as `value`).
+
+### 2026-09-21 — `jsdiff`'s `diffLines` compares each line WITH its trailing `\n`, false-diffing an otherwise-identical tail
+
+Tokenizing includes the newline, so a body without a trailing `\n` and an
+otherwise-identical body that has one produce non-matching last lines — the
+whole tail renders as del+add instead of context. Normalize both inputs to
+always end in `\n` before diffing.
+Evidence: `client/src/app/skills/_components/SkillsWorkbench/_components/SkillEditor/_components/VersionsTab/_components/DiffModal/helpers.ts` (`withTrailingNewline`).
 
 ## Recurring Errors & Fixes
 

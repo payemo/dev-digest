@@ -6,37 +6,18 @@
 import React from "react";
 import { useTranslations } from "next-intl";
 import { TextInput } from "@devdigest/ui";
-
-/** Highlight every case-insensitive occurrence of `q` within a single line. */
-function highlightLine(line: string, q: string): React.ReactNode {
-  if (!q) return line;
-  const lower = line.toLowerCase();
-  const ql = q.toLowerCase();
-  const parts: React.ReactNode[] = [];
-  let i = 0;
-  while (i <= line.length) {
-    const idx = lower.indexOf(ql, i);
-    if (idx === -1) {
-      parts.push(line.slice(i));
-      break;
-    }
-    if (idx > i) parts.push(line.slice(i, idx));
-    parts.push(
-      <mark key={idx} style={{ background: "var(--accent)", color: "var(--bg-primary)", borderRadius: 2 }}>
-        {line.slice(idx, idx + q.length)}
-      </mark>,
-    );
-    i = idx + q.length;
-  }
-  return parts;
-}
+import { HighlightedLine } from "./_components/HighlightedLine";
 
 export function PromptModalBody({ text }: { text: string }) {
   const t = useTranslations("runs");
   const [q, setQ] = React.useState("");
   const lines = React.useMemo(() => (text || "—").split("\n"), [text]);
   const ql = q.trim().toLowerCase();
-  const shown = ql ? lines.filter((l) => l.toLowerCase().includes(ql)) : lines;
+  // Pair each line with its position in the UNFILTERED text so the key stays
+  // stable across keystrokes — `shown`'s own index shifts as the filter
+  // changes, which is what made `key={i}` unsafe here (`shown` IS filtered).
+  const numbered = React.useMemo(() => lines.map((line, idx) => ({ line, idx })), [lines]);
+  const shown = ql ? numbered.filter(({ line }) => line.toLowerCase().includes(ql)) : numbered;
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "70vh" }}>
       <div style={{ padding: "12px 24px", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
@@ -63,7 +44,9 @@ export function PromptModalBody({ text }: { text: string }) {
             className="mono"
             style={{ margin: 0, padding: "16px 24px", whiteSpace: "pre-wrap", fontSize: 12.5, lineHeight: 1.6 }}
           >
-            {ql ? shown.map((l, i) => <div key={i}>{highlightLine(l, q)}</div>) : text || "—"}
+            {ql
+              ? shown.map(({ line, idx }) => <HighlightedLine key={idx} line={line} query={q} />)
+              : text || "—"}
           </pre>
         )}
       </div>

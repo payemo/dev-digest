@@ -27,6 +27,11 @@ const EnvSchema = z.object({
   // unindexed repo degrades gracefully. Per-agent override: agents.repo_intel.
   REPO_INTEL_ENABLED: z.string().optional(),
   API_PORT: z.coerce.number().int().default(3001),
+  // No AuthProvider is wired up (see adapters/auth/local.ts) — binding wider
+  // than loopback means every route is reachable, unauthenticated, from
+  // anywhere that can reach the host. Opt in explicitly if this instance is
+  // meant to be reachable off-box.
+  API_HOST: z.string().default('127.0.0.1'),
   WEB_PORT: z.coerce.number().int().default(3000),
   DEVDIGEST_CLONE_DIR: z.string().optional(),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -41,6 +46,8 @@ const EnvSchema = z.object({
 export type AppConfig = {
   databaseUrl: string;
   apiPort: number;
+  /** Interface the API binds to. Loopback by default — see API_HOST above. */
+  apiHost: string;
   webPort: number;
   /** Absolute path where repos are cloned (~/.devdigest/workspace by default). */
   cloneDir: string;
@@ -69,6 +76,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   return {
     databaseUrl: parsed.DATABASE_URL,
     apiPort: parsed.API_PORT,
+    apiHost: parsed.API_HOST,
     webPort: parsed.WEB_PORT,
     cloneDir,
     secretsPath: join(homedir(), '.devdigest', 'secrets.json'),

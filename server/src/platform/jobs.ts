@@ -15,6 +15,17 @@ import { withTimeout, withRetry } from './resilience.js';
 
 export type JobHandler = (payload: unknown, ctx: { jobId: string }) => Promise<void>;
 
+/**
+ * Strip embedded `user:pass@` credentials from a URL-bearing error message
+ * before it's persisted. A failed `clone` job's stderr (from simple-git) can
+ * echo the tokenized `https://x-access-token:<PAT>@github.com/...` clone URL
+ * on an auth/network failure — this is generic infra, so it redacts any
+ * `scheme://user:pass@host` substring rather than special-casing GitHub.
+ */
+function redactSecrets(message: string): string {
+  return message.replace(/\/\/[^/\s@]+:[^/\s@]+@/g, '//***:***@');
+}
+
 export interface JobRunnerOptions {
   concurrency?: number;
   timeoutMs?: number;
@@ -90,12 +101,21 @@ export class JobRunner {
           .set({
             status: 'failed',
             finishedAt: new Date(),
-            error: (err as Error).message,
+            error: redactSecrets((err as Error).message),
           })
           .where(eq(t.jobs.id, jobId));
         throw err;
       }
     }) as Promise<void>;
+
+    // The `jobs` row above is the durable record of success/failure; no
+    // current call site awaits `done`, so a permanently-failed job (e.g. a
+    // bad clone URL) would otherwise reject with nothing attached to catch
+    // it — an unhandled promise rejection, which is fatal under Node's
+    // default. Attaching a sink here marks the promise "handled" for Node's
+    // purposes without swallowing the rejection: a caller that *does*
+    // `await enqueued.done` still sees it reject normally.
+    done.catch(() => {});
 
     return { id: jobId, done };
   }

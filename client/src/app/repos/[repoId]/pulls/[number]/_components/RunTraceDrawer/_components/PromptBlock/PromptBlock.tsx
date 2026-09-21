@@ -25,14 +25,33 @@ export function PromptBlock({ label, text, color }: { label: string; text: strin
   const [open, setOpen] = React.useState(false);
   const [full, setFull] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
+  const copiedTimer = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  React.useEffect(() => {
+    // Clear a pending "revert to Copy icon" timer if the block unmounts (or
+    // re-renders away) before it fires — it was previously never cleared.
+    return () => clearTimeout(copiedTimer.current);
+  }, []);
   const copy = () => {
     void navigator.clipboard?.writeText(text || "");
+    clearTimeout(copiedTimer.current);
     setCopied(true);
-    setTimeout(() => setCopied(false), 1200);
+    copiedTimer.current = setTimeout(() => setCopied(false), 1200);
   };
   return (
     <div style={s.promptRow}>
-      <div onClick={() => setOpen((o) => !o)} style={s.promptHead}>
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setOpen((o) => !o);
+          }
+        }}
+        style={s.promptHead}
+      >
         <span style={s.promptDot(color)} />
         <span style={s.promptLabel}>{label}</span>
         <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>

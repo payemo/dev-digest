@@ -3,7 +3,11 @@
 # Tests are hermetic units (the LLM is stubbed). Uses npm (package-lock.json).
 #
 # server/src/vendor/shared/** is in the path filter because reviewer-core
-# aliases @devdigest/shared to it at type-check time.
+# aliases @devdigest/shared to it at type-check time. server/src/adapters/**
+# is here for the same reason at RUNTIME: test/run.test.ts imports
+# MockLLMProvider/MockGitClient from ../../server/src/adapters/mocks.js (this
+# package has no mocks of its own), so a change there can break this suite
+# without ever touching reviewer-core/ or vendor/shared/.
 name: reviewer-core
 
 on:
@@ -12,12 +16,14 @@ on:
     paths:
       - 'reviewer-core/**'
       - 'server/src/vendor/shared/**'
+      - 'server/src/adapters/**'
       - '.github/workflows/reviewer-core.yml'
       - '!**/INSIGHTS.md'
   pull_request:
     paths:
       - 'reviewer-core/**'
       - 'server/src/vendor/shared/**'
+      - 'server/src/adapters/**'
       - '.github/workflows/reviewer-core.yml'
       - '!**/INSIGHTS.md'
 

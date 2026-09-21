@@ -1,7 +1,8 @@
-import { pgTable, uuid, text, integer, jsonb, timestamp, doublePrecision } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, integer, jsonb, timestamp, doublePrecision, primaryKey, index } from 'drizzle-orm/pg-core';
 import { workspaces } from './core';
 import { agents } from './agents';
 import { pullRequests } from './pulls';
+import { skills } from './skills';
 
 // ============================================================ Observability
 
@@ -21,7 +22,9 @@ export const agentRuns = pgTable('agent_runs', {
   /** Provider-reported billed cost (e.g. OpenRouter's usage.cost); null when
    *  the provider didn't report one — derived on read from model + tokens. */
   costUsd: doublePrecision('cost_usd'),
-  status: text('status'),
+  status: text('status', { enum: ['running', 'done', 'failed', 'cancelled'] })
+    .notNull()
+    .default('running'),
   /** Failure reason when status='failed' (LLM/API error, timeout, quota, …). */
   error: text('error'),
   source: text('source', { enum: ['local', 'ci'] }).notNull().default('local'),
@@ -40,6 +43,37 @@ export const runTraces = pgTable('run_traces', {
     .references(() => agentRuns.id, { onDelete: 'cascade' }),
   trace: jsonb('trace').notNull(),
 });
+
+/**
+ * Which skills actually went into a run's prompt.
+ *
+ * Written by the run executor at prompt-assembly time, from the ENABLED subset
+ * of the agent's linked skills — so it records what was injected, not what was
+ * configured. A disabled skill is linked but absent here, exactly as it is
+ * absent from the prompt. `order` mirrors agent_skills.order at injection time.
+ *
+ * Lives here rather than in schema/skills.ts because skills.ts importing
+ * runs.ts would close the cycle skills -> runs -> agents -> skills.
+ */
+export const runSkills = pgTable(
+  'run_skills',
+  {
+    runId: uuid('run_id')
+      .notNull()
+      .references(() => agentRuns.id, { onDelete: 'cascade' }),
+    skillId: uuid('skill_id')
+      .notNull()
+      .references(() => skills.id, { onDelete: 'cascade' }),
+    order: integer('order').notNull().default(0),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.runId, t.skillId] }),
+    // Skill stats filter by skill_id, but the PK's leading column is run_id,
+    // which Postgres cannot use for that. Same reasoning as
+    // findings_review_id_idx: without this, every Stats load seq-scans.
+    skillIdx: index('run_skills_skill_id_idx').on(t.skillId),
+  }),
+);
 
 export const multiAgentRuns = pgTable('multi_agent_runs', {
   id: uuid('id').primaryKey().defaultRandom(),

@@ -96,11 +96,19 @@ export const SettingsKnown = z.object({
 });
 export type SettingsKnown = z.infer<typeof SettingsKnown>;
 
-/** Full settings payload: well-known keys + arbitrary extras. */
+/** Full settings payload: well-known keys + arbitrary extras. `passthrough`
+ *  here is a read-side accommodation for rows written before a key was added
+ *  to `SettingsKnown` — not an invitation to write new unknown keys; the
+ *  write path (`SettingsUpdate`) is strict. */
 export const Settings = SettingsKnown.passthrough();
 export type Settings = z.infer<typeof Settings>;
 
-export const SettingsUpdate = Settings.partial();
+/** PUT /settings body: only well-known keys, none required. `.strict()`
+ *  (not `Settings.partial()`, which inherited `passthrough`) rejects an
+ *  unknown key with a 422 instead of silently writing it — `Settings`
+ *  otherwise made `PUT /settings` an unbounded key/value writer bounded only
+ *  by the 1MB body limit. */
+export const SettingsUpdate = SettingsKnown.partial().strict();
 export type SettingsUpdate = z.infer<typeof SettingsUpdate>;
 
 // ---- Connection test ----
@@ -150,6 +158,23 @@ export const Repo = z.object({
   created_by: z.string().nullable(),
 });
 export type Repo = z.infer<typeof Repo>;
+
+// ---- Workspace ----
+/** GET /workspace — clone location + a summary of every cloned repo. */
+export const WorkspaceInfo = z.object({
+  workspaceId: z.string(),
+  cloneDir: z.string(),
+  repos: z.array(
+    z.object({
+      id: z.string(),
+      full_name: z.string(),
+      clone_path: z.string().nullable(),
+      last_polled_at: z.string().nullable(),
+      cloned: z.boolean(),
+    }),
+  ),
+});
+export type WorkspaceInfo = z.infer<typeof WorkspaceInfo>;
 
 // ---- Pull requests ----
 export const PrStatus = z.enum(['needs_review', 'reviewed', 'stale', 'open', 'closed', 'merged']);

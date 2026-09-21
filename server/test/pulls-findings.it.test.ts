@@ -203,10 +203,10 @@ d('PR-list FINDINGS (per-agent latest run, summed)', () => {
         pg.handle.db.select({ id: t.findings.id }).from(t.findings).where(eq(t.findings.reviewId, review.id)),
       ),
     );
-    for (const f of [...run1Findings, ...run2Findings]) {
+    for (const f of [...run1Findings!, ...run2Findings!]) {
       expect(responseFindingIds.has(f.id)).toBe(false);
     }
-    for (const f of run3Findings) {
+    for (const f of run3Findings!) {
       expect(responseFindingIds.has(f.id)).toBe(true);
     }
 

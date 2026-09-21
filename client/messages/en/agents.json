@@ -91,7 +91,18 @@
     "title": "Skills",
     "enabledCount": "{linked} of {total} enabled",
     "filterPlaceholder": "Filter skills…",
-    "orderHint": "Order matters — earlier skills appear earlier in the assembled prompt. Toggle to attach."
+    "orderHint": "Order matters — earlier skills appear earlier in the assembled prompt. Toggle to attach.",
+    "attachedCount": "{count} attached",
+    "browseAll": "Browse all skills",
+    "attach": "Attach",
+    "detach": "Detach",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "notInjected": "disabled — not injected",
+    "emptyTitle": "No skills to attach yet",
+    "emptyBody": "Create or import a skill first, then come back here to attach it to this agent.",
+    "emptyCta": "Go to Skills",
+    "loadError": "Could not load skills."
   },
   "mount": {
     "body": "Mount point for {owner}. The Agent Editor shell + tab routing are wired by A2 — {owner} renders this tab."

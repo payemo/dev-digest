@@ -19,3 +19,10 @@ GitHub applies `paths` patterns in order, so moving that exclusion above an
 inclusion silently undoes it, and `paths` + `paths-ignore` cannot both appear on
 one event — the `!` form is the only option.
 Evidence: `.github/workflows/server-unit.yml:23`.
+
+### 2026-09-20 — An apostrophe inside a single-quoted `node -e` block silently rewrites the program
+
+Bash single quotes have no escape, so a `\'` in an embedded JS comment ends the
+quote instead of escaping it — the hook still passed `bash -n` and denied every
+Bash call in the session. Keep `.claude/hooks/**` node blocks apostrophe-free.
+Evidence: `.claude/hooks/pr-self-review-gate.sh:108`.

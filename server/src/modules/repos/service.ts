@@ -2,7 +2,7 @@ import type { Container } from '../../platform/container.js';
 import { type Repo } from '@devdigest/shared';
 import { NotFoundError } from '../../platform/errors.js';
 import { RepoRepository } from './repository.js';
-import { parseRepoUrl, withGitHubToken, toRepoDto } from './helpers.js';
+import { parseRepoUrl, canonicalCloneUrl, withGitHubToken, toRepoDto } from './helpers.js';
 import {
   CLONE_JOB_KIND,
   CLONE_DEPTH,
@@ -95,11 +95,14 @@ export class RepoService {
     if (existing) return { repo: toRepoDto(existing), created: false };
 
     const row = await this.repo.insert({ workspaceId, owner, name, fullName, createdBy: userId });
+    // Never forward the caller's raw `url` to the clone job — only the
+    // parsed owner/name, reconstructed into a canonical URL. This is the
+    // same pattern `refresh()` below already uses.
     await this.container.jobs.enqueue(workspaceId, CLONE_JOB_KIND, {
       repoId: row.id,
       owner,
       name,
-      url,
+      url: canonicalCloneUrl(owner, name),
     } satisfies CloneJobPayload);
 
     return { repo: toRepoDto(row), created: true };
@@ -118,7 +121,7 @@ export class RepoService {
       repoId: repo.id,
       owner: repo.owner,
       name: repo.name,
-      url: `https://github.com/${repo.fullName}.git`,
+      url: canonicalCloneUrl(repo.owner, repo.name),
     } satisfies CloneJobPayload);
     // T2.2 — also enqueue an incremental refresh. The two queue positions are
     // independent (p-queue doesn't FIFO across kinds), but `runIncremental` is

@@ -1,8 +1,10 @@
 import { sql } from 'drizzle-orm';
-import { pgTable, uuid, text, integer, jsonb, timestamp, doublePrecision } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, integer, jsonb, timestamp, doublePrecision, index } from 'drizzle-orm/pg-core';
 import { now } from './_shared';
 import { workspaces } from './core';
 import { pullRequests } from './pulls';
+import { agents } from './agents';
+import { agentRuns } from './runs';
 
 // ============================================================ Review & findings
 
@@ -14,9 +16,12 @@ export const reviews = pgTable('reviews', {
   prId: uuid('pr_id')
     .notNull()
     .references(() => pullRequests.id, { onDelete: 'cascade' }),
-  agentId: uuid('agent_id'),
-  /** The agent_run that produced this review (links the timeline run ↔ review). */
-  runId: uuid('run_id'),
+  agentId: uuid('agent_id').references(() => agents.id, { onDelete: 'set null' }),
+  /** The agent_run that produced this review (links the timeline run ↔ review).
+   *  Cascades: deleting a run deletes the review it produced (and, via
+   *  findings.reviewId, its findings) in one statement — see
+   *  reviews/repository/run.repo.ts's `deleteAgentRun`. */
+  runId: uuid('run_id').references(() => agentRuns.id, { onDelete: 'cascade' }),
   kind: text('kind', { enum: ['summary', 'review'] }).notNull(),
   verdict: text('verdict'),
   summary: text('summary'),
@@ -25,25 +30,33 @@ export const reviews = pgTable('reviews', {
   createdAt: now(),
 });
 
-export const findings = pgTable('findings', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  reviewId: uuid('review_id')
-    .notNull()
-    .references(() => reviews.id, { onDelete: 'cascade' }),
-  file: text('file').notNull(),
-  startLine: integer('start_line').notNull(),
-  endLine: integer('end_line').notNull(),
-  severity: text('severity').notNull(),
-  category: text('category').notNull(),
-  title: text('title').notNull(),
-  rationale: text('rationale').notNull(),
-  suggestion: text('suggestion'),
-  confidence: doublePrecision('confidence').notNull(),
-  kind: text('kind').notNull().default('finding'),
-  trifectaComponents: jsonb('trifecta_components').$type<string[]>(),
-  acceptedAt: timestamp('accepted_at', { withTimezone: true }),
-  dismissedAt: timestamp('dismissed_at', { withTimezone: true }),
-});
+export const findings = pgTable(
+  'findings',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    reviewId: uuid('review_id')
+      .notNull()
+      .references(() => reviews.id, { onDelete: 'cascade' }),
+    file: text('file').notNull(),
+    startLine: integer('start_line').notNull(),
+    endLine: integer('end_line').notNull(),
+    severity: text('severity').notNull(),
+    category: text('category').notNull(),
+    title: text('title').notNull(),
+    rationale: text('rationale').notNull(),
+    suggestion: text('suggestion'),
+    confidence: doublePrecision('confidence').notNull(),
+    kind: text('kind').notNull().default('finding'),
+    trifectaComponents: jsonb('trifecta_components').$type<string[]>(),
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+    dismissedAt: timestamp('dismissed_at', { withTimezone: true }),
+  },
+  (t) => ({
+    // Postgres does not auto-index the referencing side of an FK; without
+    // this, `DELETE FROM reviews` seq-scans findings on every cascade.
+    reviewIdx: index('findings_review_id_idx').on(t.reviewId),
+  }),
+);
 
 export const prIntent = pgTable('pr_intent', {
   prId: uuid('pr_id')

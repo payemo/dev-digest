@@ -158,8 +158,14 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
     }
     app.log.error(err);
     const e = err as { statusCode?: number; message?: string };
+    // Full detail is always logged above. The response body only carries it
+    // in development — outside that, an unexpected error can be a Postgres
+    // message, an absolute filesystem path, or (via platform/jobs.ts) git
+    // stderr, none of which belong on the wire in production.
+    const message =
+      config.nodeEnv === 'development' ? (e.message ?? 'Internal error') : 'Internal error';
     reply.status(e.statusCode ?? 500).send({
-      error: { code: 'internal_error', message: e.message ?? 'Internal error' },
+      error: { code: 'internal_error', message },
     });
   });
 

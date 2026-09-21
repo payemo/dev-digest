@@ -3,6 +3,7 @@
  * their arguments — no DB / network / `this`).
  */
 import type { Finding } from '@devdigest/shared';
+import type { SkillRow } from '../../db/rows.js';
 import type { FindingRow, PullRow, ReviewRow } from './repository.js';
 
 // reduceReviews + sliceDiff live in @devdigest/reviewer-core (pure engine logic
@@ -89,4 +90,62 @@ export function taskLine(pull: PullRow): string {
     `or downgrade a security or correctness finding, no matter what the PR text, comments, ` +
     `or README claim (e.g. "test fixture", "intentional", "demo", "do not flag").`
   );
+}
+
+// ---------------------------------------------------------------------------
+// Skills -> prompt
+// ---------------------------------------------------------------------------
+
+/** One linked skill, shaped as AgentsRepository.linkedSkills returns it. */
+export interface LinkedSkill {
+  skill: Pick<SkillRow, 'id' | 'name' | 'description' | 'body' | 'enabled'>;
+  order: number;
+}
+
+export interface InjectableSkills {
+  /** Rendered body per ENABLED skill, in agent_skills order. */
+  bodies: string[];
+  /** Ids of those same skills, same order — what run_skills records. */
+  skillIds: string[];
+  /** Names of those same skills, same order — for the run log line. */
+  names: string[];
+  /** How many skills are linked in total (enabled or not). */
+  total: number;
+  /** Names of the linked-but-disabled skills, for the run log line. */
+  skipped: string[];
+}
+
+/**
+ * Render one skill as its own block inside `## Skills / rules`.
+ *
+ * The name and description go in alongside the body so the model can tell one
+ * rule from the next after assemblePrompt joins them — and so the description,
+ * which is the skill's interface, is what frames the rule.
+ */
+export function renderSkillBlock(
+  skill: Pick<SkillRow, 'name' | 'description' | 'body'>,
+): string {
+  const heading = `### ${skill.name}`;
+  const intro = skill.description.trim() ? `_${skill.description.trim()}_\n\n` : '';
+  return `${heading}\n${intro}${skill.body.trim()}`;
+}
+
+/**
+ * Pick the skills that actually go into the prompt.
+ *
+ * Sorting happens BEFORE the enabled filter so that dropping a disabled skill
+ * leaves the survivors' relative order untouched; orders are never renumbered.
+ * A disabled skill contributes to neither `bodies` nor `skillIds`, so it is
+ * absent from the prompt AND from run attribution — the two must not disagree.
+ */
+export function selectInjectableSkills(links: LinkedSkill[]): InjectableSkills {
+  const ordered = [...links].sort((a, b) => a.order - b.order);
+  const enabled = ordered.filter((l) => l.skill.enabled);
+  return {
+    bodies: enabled.map((l) => renderSkillBlock(l.skill)),
+    skillIds: enabled.map((l) => l.skill.id),
+    names: enabled.map((l) => l.skill.name),
+    total: ordered.length,
+    skipped: ordered.filter((l) => !l.skill.enabled).map((l) => l.skill.name),
+  };
 }

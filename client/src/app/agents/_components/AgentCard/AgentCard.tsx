@@ -27,7 +27,22 @@ export function AgentCard({
   const del = useDeleteAgent();
   const color = modelColor(ag.model);
   return (
-    <div onClick={onClick} style={s.card(!!active, ag.enabled)}>
+    <div
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+      style={s.card(!!active, ag.enabled)}
+    >
       <div style={s.headerRow}>
         <div style={s.iconBox}>
           <Icon.Cpu size={15} />

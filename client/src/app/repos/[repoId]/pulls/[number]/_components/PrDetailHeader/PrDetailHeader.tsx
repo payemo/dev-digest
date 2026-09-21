@@ -15,7 +15,10 @@ interface PrDetailHeaderProps {
   githubUrl?: string | null;
   onSetTab: (tab: string) => void;
   onRunStart: () => void;
-  onRunsStarted: () => void;
+  /** Optional — a started run's own cache invalidation is handled by
+   *  useRunReview now; only pass this if the caller needs a side effect on
+   *  top of that. */
+  onRunsStarted?: () => void;
 }
 
 export function PrDetailHeader({
@@ -33,7 +36,7 @@ export function PrDetailHeader({
   }, [onRunStart]);
 
   const handleRunsStarted = useCallback(() => {
-    onRunsStarted();
+    onRunsStarted?.();
   }, [onRunsStarted]);
 
   const statusColor =

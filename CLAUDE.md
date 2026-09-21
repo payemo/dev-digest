@@ -71,6 +71,14 @@ invoke the [`engineering-insights`](.claude/skills/engineering-insights/SKILL.md
 skill to append it to the right file. The root [`INSIGHTS.md`](INSIGHTS.md) is
 for findings no package owns; read it only when working above package level.
 
+## Before opening a PR
+
+Run [`pr-self-review`](.claude/skills/pr-self-review/SKILL.md) — it routes the
+open diff to the matching skills (UI files to the frontend skills, backend
+files to the architecture ones), runs the deterministic checks CI runs, and
+writes a verdict. A `PreToolUse` hook reads that verdict and **denies
+`gh pr create`** while a CRITICAL stands or the verdict is stale.
+
 ## Naming
 
 - **Packages** are `@devdigest/<short-name>` (`api`, `web`, `reviewer-core`,
