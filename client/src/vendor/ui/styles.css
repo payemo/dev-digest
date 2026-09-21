@@ -210,6 +210,10 @@ p {
   margin: 0;
 }
 
+.dd-md > *:first-child {
+  margin-top: 0 !important;
+}
+
 /* focus ring (WCAG AA) */
 :focus-visible {
   outline: 2px solid var(--accent);
