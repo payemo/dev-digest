@@ -20,7 +20,14 @@ export const s = {
     whiteSpace: "pre",
   } satisfies CSSProperties,
   confidenceRow: { maxWidth: 220 } satisfies CSSProperties,
-  actions: { display: "flex", flexDirection: "column", gap: 8, flexShrink: 0, width: 128 } satisfies CSSProperties,
+  actions: (editing: boolean) =>
+    ({
+      display: "flex",
+      flexDirection: "column",
+      gap: 8,
+      flexShrink: 0,
+      width: editing ? "auto" : 128,
+    }) satisfies CSSProperties,
   editRow: { display: "flex", flexDirection: "column", gap: 8 } satisfies CSSProperties,
   editActions: { display: "flex", gap: 8 } satisfies CSSProperties,
 };

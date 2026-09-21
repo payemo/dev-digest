@@ -104,7 +104,7 @@ export function ConventionCard({
             )}
           </div>
 
-          <div style={s.actions}>
+          <div style={s.actions(editing)}>
             {editing ? (
               <div style={s.editActions}>
                 <Button kind="primary" icon="Check" onClick={save} disabled={!rule.trim() || update.isPending}>
