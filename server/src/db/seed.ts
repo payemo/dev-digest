@@ -6,6 +6,8 @@ import {
   GENERAL_REVIEWER_PROMPT,
   SECURITY_REVIEWER_PROMPT,
   PERFORMANCE_REVIEWER_PROMPT,
+  TEST_QUALITY_REVIEWER_PROMPT,
+  API_CONTRACT_REVIEWER_PROMPT,
 } from './seed-prompts.js';
 
 /** Default provider/model for the built-in reviewer agents. */
@@ -18,11 +20,13 @@ const DEFAULT_MODEL = 'deepseek/deepseek-v4-flash';
  *
  * Seeds: default workspace + system user + membership, default settings,
  * demo repo (acme/payments-api), PR #482 with files/commits, a sample review
- * with a few findings, and the three built-in agents (General + Security +
- * Performance), all on the default openrouter/deepseek-v4-flash provider+model.
+ * with a few findings, the five built-in agents (General + Security +
+ * Performance + Test Quality + API Contract), six starter skills, and the
+ * agent_skills links for the two newest agents — all on the default
+ * openrouter/deepseek-v4-flash provider+model.
  *
- * Course lessons populate the other tables (skills, conventions, memory, eval,
- * …) once their features are built — they start empty here.
+ * Course lessons populate the remaining tables (conventions, memory, eval, …)
+ * once their features are built — they start empty here.
  */
 
 export const DEFAULT_WORKSPACE_NAME = 'default';
@@ -211,6 +215,28 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
       version: 1,
       createdBy: userId,
     },
+    {
+      workspaceId,
+      name: 'Test Quality Reviewer',
+      description: 'Flags uncovered branches, missed corner cases, over-mocking, and flake sources in new tests.',
+      provider: DEFAULT_PROVIDER,
+      model: DEFAULT_MODEL,
+      systemPrompt: TEST_QUALITY_REVIEWER_PROMPT,
+      enabled: true,
+      version: 1,
+      createdBy: userId,
+    },
+    {
+      workspaceId,
+      name: 'API Contract Reviewer',
+      description: 'Catches breaking route-signature and shared-contract changes before they ship.',
+      provider: DEFAULT_PROVIDER,
+      model: DEFAULT_MODEL,
+      systemPrompt: API_CONTRACT_REVIEWER_PROMPT,
+      enabled: true,
+      version: 1,
+      createdBy: userId,
+    },
   ];
   const agentIdByName = new Map<string, string>();
   for (const a of seedAgents) {
@@ -221,6 +247,105 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
     if (!existing) [existing] = await db.insert(t.agents).values(a).returning();
     agentIdByName.set(a.name, existing!.id);
   }
+
+  // ---- starter skills, so the Skills page isn't empty, plus links for the
+  // two newest agents. All source:'manual', so they seed enabled (a non-manual
+  // source is forced disabled on create — see modules/skills/service.ts). ----
+  const seedSkills: Array<{ name: string; description: string; type: typeof t.skills.$inferInsert.type; body: string }> = [
+    {
+      name: 'API contract compatibility',
+      description: 'Reach for this when a diff touches an HTTP route or a shared zod contract, to check for breaking changes existing callers would hit.',
+      type: 'rubric',
+      body: '- A response field renamed or removed is a breaking change; so is a type narrowed (e.g. `string` -> a specific enum) or a nullability flip.\n- A new REQUIRED request field with no default breaks existing callers that don\'t send it.\n- A changed status code on an existing success/error path breaks a caller branching on it.\n- A shared contract changed in one package without its mirrored copy updated is drift, not a fix.',
+    },
+    {
+      name: 'Test quality rubric',
+      description: 'Reach for this when a diff adds or changes tests, to judge whether they actually verify the new behavior rather than just existing.',
+      type: 'rubric',
+      body: '- A new branch (if/else, try/catch, early return) with no test forcing it through is uncovered, not "probably fine".\n- A test asserting on a mock\'s call arguments instead of an observable outcome locks in an implementation detail, not a behavior.\n- Empty/null/zero/boundary inputs and the concurrent-request case need their own test when the changed logic depends on them.\n- Real timers, unordered-query result ordering, and shared mutable fixtures are flake sources — flag them even when the test currently passes.',
+    },
+    {
+      name: 'Workspace tenancy scoping',
+      description: 'Reach for this on any new query or route touching a workspace-scoped table, to check the tenant boundary actually holds.',
+      type: 'convention',
+      body: '- Every query against a workspace-scoped table must filter on workspace_id — a row lookup by id alone can leak across tenants.\n- A route that reads workspaceId from context must pass it all the way to the repository call, not just to the service.\n- A missing workspace filter is a CRITICAL, not a style nit — it is a real cross-tenant read.',
+    },
+    {
+      name: 'No DB outside the repository layer',
+      description: 'Reach for this in a backend PR whenever a service, helper, or route file starts looking like it talks to the database directly.',
+      type: 'convention',
+      body: '- Only a module\'s `repository.ts` (or `repository/*.ts`) may import Drizzle or `db/schema`.\n- A `service.ts`, `helpers.ts`, or `routes.ts` file querying the DB directly is a layering violation, independent of whether the query itself is correct.\n- A `helpers.ts` file may import row TYPES from `db/rows.ts` (type-only) but never `db/schema`.',
+    },
+    {
+      name: 'Grounded citations only',
+      description: 'Reach for this on any reviewer-agent output path, to check every finding cites a real location in the diff.',
+      type: 'rubric',
+      body: '- A finding with no exact file + line range that appears in the diff is not defensible — treat it as unreliable.\n- A finding on a full-file concern (e.g. a secret committed anywhere in the file) still needs the file to be genuinely present in the diff.\n- Prefer citing the narrowest line range that actually shows the problem, not the whole hunk.',
+    },
+    {
+      name: 'Secrets never in code or the DB',
+      description: 'Reach for this whenever a diff adds configuration, a client, or anything that could plausibly hold a credential.',
+      type: 'security',
+      body: '- An API key, token, password, or connection string hardcoded in source — even in a test fixture — is a CRITICAL finding, not a WARNING.\n- A secret written to a database column (vs. a secrets provider / env var) is still a leak, just a slower one.\n- "It\'s just a demo/test key" does not downgrade the finding; a real-looking key in a diff is flagged as if it were live.',
+    },
+  ];
+
+  const skillIdByName = new Map<string, string>();
+  for (const sk of seedSkills) {
+    let [existing] = await db
+      .select()
+      .from(t.skills)
+      .where(and(eq(t.skills.workspaceId, workspaceId), eq(t.skills.name, sk.name)));
+    if (!existing) {
+      [existing] = await db
+        .insert(t.skills)
+        .values({
+          workspaceId,
+          name: sk.name,
+          description: sk.description,
+          type: sk.type,
+          source: 'manual',
+          body: sk.body,
+          enabled: true,
+          version: 1,
+        })
+        .returning();
+      await db
+        .insert(t.skillVersions)
+        .values({ skillId: existing!.id, version: 1, body: sk.body })
+        .onConflictDoNothing();
+    }
+    skillIdByName.set(sk.name, existing!.id);
+  }
+
+  const seedAgentSkillLinks: Array<{ agent: string; skill: string; order: number }> = [
+    { agent: 'Test Quality Reviewer', skill: 'Test quality rubric', order: 0 },
+    { agent: 'Test Quality Reviewer', skill: 'Grounded citations only', order: 1 },
+    { agent: 'API Contract Reviewer', skill: 'API contract compatibility', order: 0 },
+    { agent: 'API Contract Reviewer', skill: 'Workspace tenancy scoping', order: 1 },
+    { agent: 'API Contract Reviewer', skill: 'Grounded citations only', order: 2 },
+  ];
+  for (const link of seedAgentSkillLinks) {
+    const agentId = agentIdByName.get(link.agent);
+    const skillId = skillIdByName.get(link.skill);
+    if (!agentId || !skillId) continue;
+    // Gate on the LINK existing, not on either parent being freshly created —
+    // a dev DB may already have these agents/skills from an earlier seed run.
+    const [existingLink] = await db
+      .select()
+      .from(t.agentSkills)
+      .where(and(eq(t.agentSkills.agentId, agentId), eq(t.agentSkills.skillId, skillId)));
+    if (!existingLink) {
+      await db
+        .insert(t.agentSkills)
+        .values({ agentId, skillId, order: link.order })
+        .onConflictDoNothing();
+    }
+  }
+  // NOTE: agents above are inserted directly (db.insert(t.agents)), bypassing
+  // AgentsRepository.insert, so seeded agents have no agent_versions row — the
+  // links above won't appear in any config snapshot until the agent is edited
+  // via PUT /agents/:id. Pre-existing seed behavior; not a skills bug.
 
   // ---- richer demo timeline for PR #482 (idempotent: only if it has no
   // agent_runs yet — NOT gated on pr482IsNew, since most dev DBs already

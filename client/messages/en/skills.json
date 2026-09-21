@@ -9,7 +9,9 @@
     "menu": {
       "fromFile": "Import from file",
       "fromUrl": "Import from URL",
-      "community": "Search community skills…"
+      "community": "Search community skills…",
+      "createFromScratch": "Create from scratch",
+      "fromArchive": "Import from archive"
     },
     "empty": {
       "title": "No skills yet",
@@ -45,7 +47,7 @@
     "nameHint": "Optional — derived from the first heading if blank.",
     "namePlaceholder": "pr-quality-rubric",
     "bodyLabel": "Skill body (Markdown)",
-    "bodyHint": "Pasted content is wrapped as untrusted data — never executed as instructions.",
+    "bodyHint": "A skill body is injected into the agent's prompt as INSTRUCTIONS, not wrapped as untrusted data — read it before enabling.",
     "bodyPlaceholder": "# Rule\nDescribe the rule…",
     "importing": "Importing…",
     "import": "Import skill",
@@ -93,9 +95,85 @@
     "disabled": "Disabled",
     "save": "Save",
     "edit": "Edit",
-    "untrustedNotice": "This skill came from an untrusted source. Its body is stored as data (delimiter-wrapped) and must be vetted before it is enabled for an agent.",
+    "untrustedNotice": "This skill came from an untrusted source. Its body reaches the model as instructions (not delimiter-wrapped data), so it stays disabled until you read it and enable it yourself.",
     "bodyLabel": "Skill body (Markdown)",
     "bodyHint": "Saving a changed body creates a new immutable version.",
     "version": "v{version}"
+  },
+  "editor": {
+    "tabs": {
+      "config": "Config",
+      "preview": "Preview",
+      "stats": "Stats",
+      "versions": "Versions"
+    },
+    "header": {
+      "vetting": "needs vetting",
+      "runOnPr": "Run on a PR…",
+      "create": "New skill"
+    },
+    "config": {
+      "title": "Configuration",
+      "name": "Name",
+      "description": "Description",
+      "descriptionHint": "This is the skill's interface — write it directively. It's what tells an agent when to reach for this skill, not a summary of the body.",
+      "type": "Type",
+      "source": "Source",
+      "sourceHint": "Set on import; a skill can't change its own source.",
+      "body": "Skill body (Markdown)",
+      "bodyHint": "Injected into the prompt verbatim when this skill is enabled and linked. Changing it creates a new version.",
+      "enabled": "Enabled",
+      "disabledHint": "Disabled skills are linked but never reach the prompt.",
+      "vettingHint": "Imported from an untrusted source — read the body before enabling.",
+      "save": "Save",
+      "saving": "Saving…",
+      "saved": "Saved (v{version})",
+      "savedToast": "Saved \"{name}\" (v{version})"
+    },
+    "preview": {
+      "title": "Preview",
+      "body": "Rendered exactly as it appears in the assembled prompt, inside “## Skills / rules”.",
+      "disabledNote": "This skill is disabled — it is not currently injected into any prompt."
+    },
+    "stats": {
+      "title": "Stats",
+      "usedBy": "Used by",
+      "usedByAgents": "{count} agent(s)",
+      "pullFrequency": "Pull frequency",
+      "pullFrequencyValue": "{injected} of {total} run(s)",
+      "findings": "Findings ({days}d)",
+      "acceptRate": "Accept rate",
+      "acceptRateValue": "{accepted} of {triaged} triaged",
+      "byCategory": "Findings by category",
+      "correlationNote": "In runs with this skill — not necessarily found BECAUSE of it. The model sees the whole prompt at once.",
+      "none": "No runs yet",
+      "dash": "—"
+    },
+    "versions": {
+      "title": "Version history",
+      "current": "Current",
+      "empty": "No earlier versions.",
+      "createdAt": "Saved {date}"
+    }
+  },
+  "import": {
+    "modalTitle": "Import a skill",
+    "modalSubtitleFile": "Reads a local Markdown file. Nothing is sent until you confirm.",
+    "modalSubtitleArchive": "Reads local .md files out of a .zip. Anything else in the archive is dropped and never sent.",
+    "dropHint": "Drop a file here, or click to choose one",
+    "parsing": "Reading…",
+    "parseError": "Could not read that file.",
+    "tooLarge": "That file is larger than the {maxMb} MB import limit.",
+    "tooManyEntries": "That archive has more than {max} entries.",
+    "entryKept": "will be imported",
+    "entryDroppedExt": "skipped — not a .md file",
+    "entryDroppedSize": "skipped — too large",
+    "entryDroppedPath": "skipped — unsafe path",
+    "nameHint": "Derived from frontmatter, the first heading, or the filename.",
+    "vettingNote": "Imported skills are stored disabled. Vet the body, then enable it here or in the editor.",
+    "confirm": "Import {count, plural, one {# skill} other {# skills}}",
+    "confirming": "Importing…",
+    "cancel": "Cancel",
+    "importedToast": "Imported \"{name}\" (disabled — vet before enabling)."
   }
 }

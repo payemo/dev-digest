@@ -177,6 +177,11 @@ export class ReviewRepository {
     return pullRepo.markReviewed(this.db, prId, sha);
   }
 
+  /** Record which skills went into this run's prompt (enabled + linked only). */
+  recordRunSkills(runId: string, skillIds: string[]): Promise<void> {
+    return runRepo.recordRunSkills(this.db, runId, skillIds);
+  }
+
   /** Persist the WHOLE run log as ONE document. PK = runId → agent_runs. */
   saveRunTrace(runId: string, trace: RunTrace): Promise<void> {
     return runRepo.saveRunTrace(this.db, runId, trace);

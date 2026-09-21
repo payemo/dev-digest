@@ -32,6 +32,39 @@ is a no-op and unnecessary when aggregating findings/scores by review.
 Evidence: `server/src/modules/reviews/run-executor.ts:219` (insert) vs `:244`
 (success) and `:300-311` (failure/cancel, no insert).
 
+### 2026-09-21 — A "links X to a run" join table belongs in `schema/runs.ts`, not X's own file
+
+`run_skills` (skill -> agent_runs attribution) can't live in `schema/skills.ts`:
+`skills.ts` importing `runs.ts` would close the cycle
+`skills -> runs -> agents -> skills` (`agents.ts` already imports `skills.ts`
+for the FK, and `runs.ts` imports `agents.ts`). `runs.ts` is the only
+cycle-free home for any future run-attribution join table.
+Evidence: `server/src/db/schema/runs.ts` (`runSkills`, with the doc comment
+explaining the cycle).
+
+### 2026-09-21 — Skill bodies are the one prompt block `assemblePrompt` does NOT wrap in `<untrusted>` — the enabled-on-create gate is security, not UX
+
+`PromptParts.skills` is injected as trusted instructions (unlike diff/PR-body/
+repo-map/specs/callers, which are all `wrapUntrusted`-ed). So
+`mayBeEnabledOnCreate` forcing `enabled: false` for any non-`'manual'` source
+is the ONLY thing between "user imports an archive" and "a stranger's text
+becomes unwrapped model instructions." Never relax that gate without also
+adding delimiter-wrapping to the skills block.
+Evidence: `reviewer-core/src/prompt.ts:42` (`skills?: string[]` doc comment,
+"trusted-ish"); `server/src/modules/skills/helpers.ts` (`mayBeEnabledOnCreate`).
+
+### 2026-09-21 — A stats denominator over historical runs must exclude pre-feature rows, not just leave them uncounted in the numerator
+
+`SkillStats.pull_frequency_pct`'s denominator (`linked_agent_runs`) only counts
+runs with at least one `run_skills` row — i.e. runs from after this table
+existed. Without that filter, every skill's pull frequency reads near-zero
+forever, because old runs have no attribution rows at all. General pattern for
+any join table added after the fact to attribute a new dimension onto
+historical rows: the denominator query needs an explicit "has attribution"
+guard, or it silently averages in a mountain of unattributed history.
+Evidence: `server/src/modules/skills/repository.ts` (`runCounts`, the
+`EXISTS (SELECT 1 FROM run_skills ...)` clause).
+
 ## Tool & Library Notes
 
 ### 2026-09-20 — `exclude: node_modules` makes every dependency-cruiser npm rule pass vacuously

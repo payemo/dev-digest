@@ -85,6 +85,13 @@
       "when": 1789925686268,
       "tag": "0011_grey_omega_flight",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1789932432822,
+      "tag": "0012_striped_warlock",
+      "breakpoints": true
     }
   ]
 }

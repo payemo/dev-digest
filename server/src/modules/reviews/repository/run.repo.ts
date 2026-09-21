@@ -182,6 +182,26 @@ export async function completeAgentRun(
     .where(eq(t.agentRuns.id, runId));
 }
 
+/**
+ * Record which skills went into this run's prompt.
+ *
+ * Written at prompt-assembly time from the ENABLED subset of the agent's linked
+ * skills, so it reflects what was injected rather than what was configured. A
+ * run that later fails still carries correct attribution, because the fact
+ * became true before the model was ever called.
+ */
+export async function recordRunSkills(
+  db: Db,
+  runId: string,
+  skillIds: string[],
+): Promise<void> {
+  if (skillIds.length === 0) return;
+  await db
+    .insert(t.runSkills)
+    .values(skillIds.map((skillId, i) => ({ runId, skillId, order: i })))
+    .onConflictDoNothing();
+}
+
 /** Persist the WHOLE run log as ONE document. PK = runId → agent_runs. */
 export async function saveRunTrace(db: Db, runId: string, trace: RunTrace): Promise<void> {
   await db
