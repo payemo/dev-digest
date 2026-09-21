@@ -92,6 +92,20 @@
       "when": 1789932432822,
       "tag": "0012_striped_warlock",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1790013169299,
+      "tag": "0013_solid_pepper_potts",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790013189751,
+      "tag": "0014_steep_molten_man",
+      "breakpoints": true
     }
   ]
 }

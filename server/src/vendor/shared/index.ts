@@ -7,6 +7,8 @@
  *  - contracts/knowledge  Conformance, Onboarding, EvalRun/EvalCase, MemoryItem,
  *                         Skill/CommunitySkill, ConventionCandidate, Agent
  *  - contracts/skills     SkillCreate/SkillUpdate, SkillVersion, SkillStats
+ *  - contracts/conventions ConventionExtractResult, ConventionUpdate,
+ *                          ConventionSkillDraft/ConventionSkillCreate
  *  - contracts/trace      RunTrace, RunEvent, RunLogLine (single-document trace)
  *  - contracts/platform   Settings, ConnTestResult, Repo, PrMeta/PrDetail, SpecFile, …
  *  - adapters             adapter interfaces + ModelInfo
@@ -20,6 +22,7 @@ export * from './contracts/review-api.js';
 export * from './contracts/brief.js';
 export * from './contracts/knowledge.js';
 export * from './contracts/skills.js';
+export * from './contracts/conventions.js';
 export * from './contracts/trace.js';
 export * from './contracts/platform.js';
 export * from './contracts/why.js';

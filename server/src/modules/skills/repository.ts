@@ -89,6 +89,15 @@ export class SkillsRepository {
     return row;
   }
 
+  /** Exact-name lookup — used by other modules to detect a name conflict before create (e.g. the Conventions Extractor's canonical `repo-conventions`). */
+  async getByName(workspaceId: string, name: string): Promise<SkillRow | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(t.skills)
+      .where(and(eq(t.skills.workspaceId, workspaceId), eq(t.skills.name, name)));
+    return row;
+  }
+
   /** Insert a skill AND record body version 1 (immutable snapshot). */
   async insert(values: InsertSkill): Promise<SkillRow> {
     return this.db.transaction(async (tx) => {

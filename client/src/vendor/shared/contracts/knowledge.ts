@@ -141,13 +141,35 @@ export const CommunitySkill = z.object({
 export type CommunitySkill = z.infer<typeof CommunitySkill>;
 
 // ---- Conventions ----
+export const ConventionStatus = z.enum(['pending', 'approved', 'rejected']);
+export type ConventionStatus = z.infer<typeof ConventionStatus>;
+
+export const ConventionCategory = z.enum([
+  'naming',
+  'structure',
+  'errors',
+  'testing',
+  'imports',
+  'typing',
+  'api',
+  'general',
+]);
+export type ConventionCategory = z.infer<typeof ConventionCategory>;
+
 export const ConventionCandidate = z.object({
   id: z.string(),
+  repo_id: z.string().nullable(),
+  category: ConventionCategory,
   rule: z.string(),
-  evidence_path: z.string(),
-  evidence_snippet: z.string(),
-  confidence: z.number().min(0).max(1),
-  accepted: z.boolean(),
+  rationale: z.string().nullable(),
+  evidence_path: z.string().nullable(),
+  /** 1-based, as VERIFIED by code — never the model's unchecked claim. */
+  evidence_line: z.number().int().nullable(),
+  evidence_snippet: z.string().nullable(),
+  confidence: z.number().min(0).max(1).nullable(),
+  status: ConventionStatus,
+  created_at: z.string().nullable(),
+  updated_at: z.string().nullable(),
 });
 export type ConventionCandidate = z.infer<typeof ConventionCandidate>;
 

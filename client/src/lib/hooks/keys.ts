@@ -37,3 +37,13 @@ export const skillKeys = {
 export const agentSkillKeys = {
   forAgent: (agentId: string | null | undefined) => ["agent-skills", agentId] as const,
 };
+
+/**
+ * Query-key factory for the Conventions Extractor (src/lib/hooks/conventions.ts).
+ * Keyed by repo — a scan, an accept/reject/edit, and a skill-draft fetch all
+ * invalidate through `forRepo`.
+ */
+export const conventionKeys = {
+  forRepo: (repoId: string | null | undefined) => ["conventions", repoId] as const,
+  draft: (repoId: string | null | undefined) => ["conventions-skill-draft", repoId] as const,
+};

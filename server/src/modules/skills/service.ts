@@ -44,6 +44,12 @@ export class SkillsService {
     return row ? toSkillDto(row) : undefined;
   }
 
+  /** Exact-name lookup — other modules use this to detect a conflict before creating a skill under a canonical name. */
+  async getByName(workspaceId: string, name: string): Promise<Skill | undefined> {
+    const row = await this.repo.getByName(workspaceId, name);
+    return row ? toSkillDto(row) : undefined;
+  }
+
   /**
    * Create a skill.
    *
