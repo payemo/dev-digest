@@ -151,9 +151,18 @@
     },
     "versions": {
       "title": "Version history",
+      "count": "{count, plural, one {# version} other {# versions}}",
       "current": "Current",
       "empty": "No earlier versions.",
-      "createdAt": "Saved {date}"
+      "createdAt": "Saved {date}",
+      "diff": "Diff",
+      "restore": "Restore",
+      "restoring": "Restoring…",
+      "restoreConfirm": "Restore v{version}? This creates a new version with v{version}'s body — it does not delete history.",
+      "restoredToast": "Restored v{version} (now v{newVersion})",
+      "diffModalTitle": "Compare versions",
+      "diffModalSubtitle": "v{base} → current (v{current})",
+      "noChanges": "No differences — the body is identical."
     }
   },
   "import": {
