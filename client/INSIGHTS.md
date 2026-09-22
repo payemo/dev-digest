@@ -93,6 +93,15 @@ whole tail renders as del+add instead of context. Normalize both inputs to
 always end in `\n` before diffing.
 Evidence: `client/src/app/skills/_components/SkillsWorkbench/_components/SkillEditor/_components/VersionsTab/_components/DiffModal/helpers.ts` (`withTrailingNewline`).
 
+### 2026-09-21 — RTL's `getByDisplayValue`/`getByText` collapse newlines by default, so they can't find a multi-line `<textarea>` by its exact value
+
+The default text normalizer collapses internal whitespace (including `\n`) to
+a single space before matching, so `getByDisplayValue(multilineString)` fails
+to find a textarea whose live `.value` is byte-identical to that string. Assert
+on `document.querySelector("textarea").value` directly for multi-line content
+(a Markdown skill body, a multi-line diff) instead of `getByDisplayValue`.
+Evidence: `client/src/app/repos/[repoId]/conventions/_components/CreateSkillModal/CreateSkillModal.test.tsx`.
+
 ## Recurring Errors & Fixes
 
 _Nothing yet._

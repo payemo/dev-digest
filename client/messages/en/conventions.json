@@ -7,20 +7,71 @@
     "subtitle": "Scan the cloned repo to surface house-rules — each backed by evidence you can turn into a Skill.",
     "scanning": "Scanning…",
     "rescan": "Re-scan",
-    "runExtraction": "Run extraction",
-    "extractionFailed": "Extraction failed",
     "loadError": "Could not load conventions.",
+    "extractionFailed": "The scan couldn't complete. You can retry, or check that a model is configured under Settings → Models → Conventions.",
+    "createSkill": "Create skill",
+    "createSkillDisabledHint": "Accept at least one candidate first.",
+    "filterEmpty": "No candidates match this filter.",
     "empty": {
       "title": "No conventions extracted yet",
       "body": "Scan the repo to surface house-rules — naming, error handling, structure — each backed by evidence you can turn into a Skill.",
-      "cta": "Run extraction"
+      "cta": "Run Scan"
     },
-    "candidateCount": "{count, plural, one {# candidate} other {# candidates}} · grounded against sampled files"
+    "noValid": {
+      "title": "No valid candidates",
+      "body": "The scan ran, but nothing survived the evidence check. Re-scan, or try a different model under Settings → Models → Conventions."
+    },
+    "filters": {
+      "pending": "Pending",
+      "approved": "Accepted",
+      "rejected": "Rejected",
+      "all": "All"
+    }
   },
   "card": {
     "confidence": "Confidence",
     "accepted": "Accepted",
-    "accepting": "Accepting…",
-    "acceptAsSkill": "Accept as Skill"
+    "rejected": "Rejected",
+    "accept": "Accept",
+    "reject": "Reject",
+    "edit": "Edit",
+    "save": "Save",
+    "cancel": "Cancel",
+    "editRulePlaceholder": "Describe the convention…",
+    "category": {
+      "naming": "Naming",
+      "structure": "Structure",
+      "errors": "Error Handling",
+      "testing": "Testing",
+      "imports": "Imports",
+      "typing": "Typing",
+      "api": "API Shape",
+      "general": "General"
+    }
+  },
+  "modal": {
+    "title": "Create skill from conventions",
+    "provenance": "Merged from {count, plural, one {# accepted convention} other {# accepted conventions}} in {repo}. Everything below is editable before you save.",
+    "name": "Name",
+    "description": "Description",
+    "typeLabel": "Type",
+    "enabled": "Enabled",
+    "body": "Skill body",
+    "bodyHint": "Fully editable Markdown. Grouped by category, with a file:line citation for each rule.",
+    "cancel": "Cancel",
+    "create": "Create skill",
+    "creating": "Creating…",
+    "createdToast": "Created \"{name}\" — link it to an agent from Agents → Skills.",
+    "createFailed": "Couldn't create the skill.",
+    "draftFailed": "Couldn't build the draft.",
+    "loadingDraft": "Building the draft…",
+    "nameConflict": "A skill named \"{name}\" already exists.",
+    "replaceExisting": "Replace existing",
+    "type": {
+      "rubric": "Rubric",
+      "convention": "Convention",
+      "security": "Security",
+      "custom": "Custom"
+    }
   }
 }

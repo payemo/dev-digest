@@ -19,6 +19,16 @@ had PR #482 — the rich timeline never landed. Gate on whether the PR has any
 `agent_runs` row yet instead.
 Evidence: `server/src/db/seed.ts` (the `existingRun` guard before `seedPr482Timeline`).
 
+### 2026-09-21 — A dedupe key for LLM-proposed rows must never include user-editable text
+
+The Conventions re-scan dedupe key first included the (normalized) rule text
+alongside category + evidence location. The first time a user edited a
+candidate's rule and then re-scanned, the edited row and the model's original
+wording survived as two separate rows, because their keys now differed. Key
+purely on the physical identity of the observation (category + evidence_path +
+evidence_line) — never on text a human might change.
+Evidence: `server/src/modules/conventions/helpers.ts` (`ruleKey`).
+
 ## Codebase Patterns
 
 ### 2026-09-19 — A `reviews` row only ever exists for a successful run
@@ -65,7 +75,34 @@ guard, or it silently averages in a mountain of unattributed history.
 Evidence: `server/src/modules/skills/repository.ts` (`runCounts`, the
 `EXISTS (SELECT 1 FROM run_skills ...)` clause).
 
+### 2026-09-21 — Depending on another module's write-side logic means promoting its Service onto the Container, not importing the class directly
+
+When a new module needs another module's business logic (not just its
+repository), promote that module's Service onto `Container` as a lazy getter —
+the same way `repoIntel` already is — rather than `new OtherService(container)`
+inside your own service. Added `container.skills` for this (Conventions
+creates/updates the `repo-conventions` skill through it, going through
+`SkillsService`'s own rules like the enabled-on-create gate). A module's own
+`routes.ts` may still construct a local instance directly for its own
+job-handler registration (`repo-intel/routes.ts` does this) — that's a
+narrower, different case.
+Evidence: `server/src/platform/container.ts` (`get skills()`);
+`server/src/modules/conventions/service.ts`.
+
 ## Tool & Library Notes
+
+### 2026-09-21 — `drizzle-kit generate` prompts interactively when one pass both drops and adds columns on the same table, and the prompt can't be answered non-interactively
+
+Dropping an old column and adding new ones to the same table in one schema
+edit makes drizzle-kit ask "Is `<col>` created or renamed from `<old_col>`?" —
+an arrow-key TTY prompt. Piped stdin does not answer it; the process just
+exits without generating a migration. Split the change into two schema edits
++ `pnpm db:generate` passes instead: add the new columns first (nothing
+dropped, no rename guess needed), then drop the old one in a second pass.
+Evidence: `server/src/db/schema/knowledge.ts` (the `conventions` table's
+`category`/`rationale`/`evidence_line`/`status`/`updated_at` columns added in
+migration `0013_solid_pepper_potts.sql`, `accepted` dropped in
+`0014_steep_molten_man.sql`).
 
 ### 2026-09-20 — `exclude: node_modules` makes every dependency-cruiser npm rule pass vacuously
 

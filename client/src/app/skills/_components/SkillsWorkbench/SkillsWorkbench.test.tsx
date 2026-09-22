@@ -39,6 +39,8 @@ vi.mock("../../../../lib/hooks/skills", () => ({
   useSkills: () => ({ data: SKILLS, isLoading: false, isError: false, refetch: vi.fn() }),
   useSkill: () => ({ data: undefined, isLoading: false, isError: false, error: undefined, refetch: vi.fn() }),
   useUpdateSkill: () => ({ mutate: vi.fn(), isPending: false }),
+  useDeleteSkill: () => ({ mutate: vi.fn(), isPending: false }),
+  useSkillAgents: () => ({ data: [], isLoading: false, isError: false }),
 }));
 
 import { SkillsWorkbench } from "./SkillsWorkbench";

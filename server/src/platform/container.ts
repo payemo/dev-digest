@@ -28,6 +28,7 @@ import { ReviewRepository } from '../modules/reviews/repository.js';
 import { RepoRepository } from '../modules/repos/repository.js';
 import type { RepoIntel } from '../modules/repo-intel/types.js';
 import { RepoIntelService } from '../modules/repo-intel/service.js';
+import { SkillsService } from '../modules/skills/service.js';
 import { type DepGraph, DepCruiseGraph } from '../adapters/depgraph/index.js';
 import { type Tokenizer, TiktokenTokenizer } from '../adapters/tokenizer/index.js';
 
@@ -78,6 +79,7 @@ export class Container {
   private _depgraph?: DepGraph;
   private _tokenizer?: Tokenizer;
   private _priceBook?: PriceBook;
+  private _skills?: SkillsService;
 
   constructor(config: AppConfig, db: Db, private overrides: ContainerOverrides = {}) {
     this.config = config;
@@ -123,6 +125,17 @@ export class Container {
     if (this.overrides.repoIntel) return this.overrides.repoIntel;
     this._repoIntel ??= new RepoIntelService(this);
     return this._repoIntel;
+  }
+
+  /**
+   * The Skills service, promoted here the same way `repoIntel` is: a facade
+   * another module's service can call so it goes through Skills' own business
+   * rules (versioning, the enabled-on-create gate) instead of reaching into
+   * `skills/repository.ts` directly. Used by the Conventions Extractor to
+   * create/replace the `repo-conventions` skill.
+   */
+  get skills(): SkillsService {
+    return (this._skills ??= new SkillsService(this));
   }
 
   /** Import-graph builder (dependency-cruiser). T3 indexer pipeline only. */
