@@ -76,6 +76,10 @@
   "listItem": {
     "needsVetting": "needs vetting",
     "vettingTitle": "Untrusted source — vet before enabling",
+    "agentCount": "{count, plural, =0 {no agents} one {# agent} other {# agents}}",
+    "deleteLabel": "Delete skill",
+    "deleteConfirm": "Delete \"{name}\"? It's linked to {count, plural, =0 {no agents} one {# agent} other {# agents}} — deleting removes it from every one of them. This cannot be undone.",
+    "deleteConfirmUnknown": "Delete \"{name}\"? This cannot be undone.",
     "type": {
       "rubric": "rubric",
       "convention": "convention",
