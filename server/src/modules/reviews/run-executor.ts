@@ -1,5 +1,5 @@
 import type { Container } from '../../platform/container.js';
-import type { Provider, Review, RunTrace, UnifiedDiff } from '@devdigest/shared';
+import type { PrIntentRecord, Provider, Review, RunTrace, UnifiedDiff } from '@devdigest/shared';
 import { reviewPullRequest, countBlockers } from '@devdigest/reviewer-core';
 import { RunLogger } from '../../platform/run-logger.js';
 import type { AgentRow, RepoRow } from '../../db/rows.js';
@@ -104,6 +104,21 @@ export class ReviewRunExecutor {
     }
     runLog.info(`Diff ready — ${diff.files.length} changed file(s); starting ${jobs.length} agent run(s)`);
 
+    // Derived PR intent — shared pre-work like the diff, so ONE derivation
+    // serves every queued run (and is cached on `pr_intent` by head SHA, so a
+    // re-run of the same commit costs nothing). `tool` because it is external
+    // I/O, amber in the Live Log, same as the diff step.
+    //
+    // NO try/catch, and deliberately NOT routed to `failAll`: `ensureForRun`
+    // catches everything itself and degrades to an `info` line. Intent is
+    // enrichment — losing it costs a prompt section, not a review. `failAll`
+    // stays reserved for the diff, without which there is nothing to review.
+    const intent = await runLog.step(
+      'Deriving PR intent',
+      () => this.container.intent.ensureForRun(workspaceId, pull, repo, runLog),
+      { kind: 'tool' },
+    );
+
     for (const { agent, runId } of jobs) {
       const agentStart = Date.now();
       logger?.info(
@@ -111,7 +126,16 @@ export class ReviewRunExecutor {
         `review: agent "${agent.name}" started (${agent.provider}/${agent.model})`,
       );
       try {
-        const outcome = await this.runOneAgent(workspaceId, pull, repo, diff, agent, runId, runLog);
+        const outcome = await this.runOneAgent(
+          workspaceId,
+          pull,
+          repo,
+          diff,
+          agent,
+          runId,
+          runLog,
+          intent,
+        );
         logger?.info(
           {
             runId,
@@ -143,6 +167,8 @@ export class ReviewRunExecutor {
     agent: AgentRow,
     runId: string,
     parentLog: RunLogger,
+    /** Shared pre-work result; `undefined` when derivation was skipped or failed. */
+    intent: PrIntentRecord | undefined,
   ): Promise<RunOutcome> {
     const start = Date.now();
     // Narrow the fanned-out pre-work logger to THIS run; the shared diff/intent
@@ -222,6 +248,20 @@ export class ReviewRunExecutor {
         // PR author's description/body — untrusted; assemblePrompt wraps +
         // truncates it. Omitted when the PR has no body.
         ...(pull.body ? { prDescription: pull.body } : {}),
+        // Derived intent — same omit-when-absent contract as every other
+        // enrichment, so a PR with no derivable intent gets a prompt
+        // byte-identical to the pre-lesson one. `confidence` is the value
+        // computed in code from the recorded evidence, never the model's.
+        ...(intent
+          ? {
+              intent: {
+                summary: intent.intent,
+                inScope: intent.in_scope,
+                outOfScope: intent.out_of_scope,
+                confidence: intent.confidence,
+              },
+            }
+          : {}),
         task,
         sessionId: `${repo.owner}/${repo.name}#${pull.number}:${agent.name}`,
         onEvent: (e) => runLog.event(e.kind, e.msg, e.data),

@@ -11,6 +11,27 @@
     "sendReply": "Send reply",
     "cancel": "Cancel"
   },
+  "intent": {
+    "heading": "Intent",
+    "inScope": "In scope",
+    "outOfScope": "Out of scope",
+    "riskAreas": "Risk areas",
+    "confidence": {
+      "high": "High confidence",
+      "medium": "Medium confidence",
+      "low": "Low confidence"
+    },
+    "lowHint": "Derived from indirect signals only — no linked issue, spec, or written description.",
+    "stale": "May be out of date",
+    "staleHint": "New commits landed since this was derived.",
+    "derive": "Derive intent",
+    "rederive": "Re-derive",
+    "deriving": "Deriving…",
+    "empty": "No intent derived yet",
+    "emptyHint": "Deriving reads the PR’s description, linked issue, commits and changed files, then makes one call to the model configured under Settings → Models.",
+    "basedOn": "Based on: {sources}",
+    "usage": "{tokens} tok · {cost}"
+  },
   "trifecta": {
     "lethal": "LETHAL TRIFECTA — ALL 3 PRESENT",
     "components": "TRIFECTA COMPONENTS",

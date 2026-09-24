@@ -13,6 +13,11 @@ import type {
   IssueMeta,
 } from '@devdigest/shared';
 import { withRetry, withTimeout } from '../../platform/resilience.js';
+// A pure, dependency-free extractor. Importing it here points OUTER (adapter)
+// → INNER (application helper), which is the allowed direction, and keeps the
+// closing-keyword rule in ONE place: a second copy of a security-relevant
+// regex is a copy that silently drifts.
+import { extractLinkedIssueRefs } from '../../modules/intent/helpers.js';
 
 const TIMEOUT = 30_000;
 
@@ -123,12 +128,31 @@ export class OctokitGitHubClient implements GitHubClient {
     );
   }
 
-  /** linked issue via regex on PR body (#123 / closes #123). */
+  /**
+   * The issue this PR CLOSES, from the PR body.
+   *
+   * Requires one of GitHub's nine closing keywords — `Fixes #12`,
+   * `Closes owner/repo#7` — and no longer matches a bare `#123`. A bare `#n`
+   * in prose ("see #12 for context", a Markdown heading) is a mention, not a
+   * statement that this PR resolves it, and the old pattern turned every one
+   * of them into "the linked issue".
+   *
+   * TRADE-OFF, accepted deliberately: GitHub itself only *acts* on closing
+   * keywords when the PR targets the default branch, and the only API that
+   * reports true closing links is GraphQL `closingIssuesReferences` — REST has
+   * no equivalent, and adding GraphQL would mean a second auth path and a
+   * second failure mode in an adapter whose value here is that it degrades to
+   * "no token, no issue" offline. So we accept FALSE NEGATIVES (a closing link
+   * expressed in a way this pattern misses) over the FALSE POSITIVES the bare
+   * `#n` pattern produced: a wrong issue misinforms every consumer, a missing
+   * one only leaves a field empty.
+   */
   private async resolveLinkedIssue(repo: RepoRef, body: string): Promise<IssueMeta | undefined> {
-    const m = body.match(/(?:closes|fixes|resolves)?\s*#(\d+)/i);
-    if (!m?.[1]) return undefined;
+    const [ref] = extractLinkedIssueRefs(body);
+    if (!ref) return undefined;
+    const target: RepoRef = ref.owner && ref.repo ? { owner: ref.owner, name: ref.repo } : repo;
     try {
-      return await this.getIssue(repo, Number(m[1]));
+      return await this.getIssue(target, ref.number);
     } catch {
       return undefined;
     }

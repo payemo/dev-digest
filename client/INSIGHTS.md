@@ -70,6 +70,15 @@ tweak — the global reset zeroes `h1-h4`/`p` margins repo-wide on purpose.
 Evidence: `client/src/vendor/ui/primitives/Markdown.tsx`;
 `client/src/vendor/ui/styles.css:205-211`.
 
+### 2026-09-24 — Vendored `Badge` accepts no `title`, so a tooltip needs a wrapping `<span title>`
+
+`Badge`'s props are a closed inline type (`children`/`color`/`bg`/`icon`/`dot`/
+`mono`/`style`) — passing `title` is a typecheck error, and rebuilding a
+`vendor/ui` primitive to add one is forbidden. Wrap the badge instead. Same
+family as the `SeverityBadge`-is-a-`<span>` vs `Chip`-is-a-`<button>` entry
+above: what the primitive renders, and what it accepts, are both load-bearing.
+Evidence: `client/src/vendor/ui/primitives/Badge.tsx:5-21`.
+
 ## Tool & Library Notes
 
 ### 2026-09-21 — `@devdigest/ui`'s `Donut` is built for money, not counts — `MetricCard`'s `suffix` is for a short unit, not a sentence
