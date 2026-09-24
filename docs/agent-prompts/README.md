@@ -16,6 +16,28 @@ in the DB). The canonical, reviewable copies live next to this file:
 > originals — when you change a prompt, edit the file here **and** push it to the
 > agent (`PUT /agents/:id`, which versions the change into `agent_versions`).
 
+### Not reviewer prompts: the feature system prompts
+
+A handful of *non-reviewer* features each make one structured model call of
+their own. Their instruction text is not stored in the DB and is not an agent —
+it lives as a template file under `server/src/prompts/`, loaded by
+`loadPromptTemplate`:
+
+| File | Feature | Called from |
+|---|---|---|
+| `onboarding.system.md` | per-repo onboarding tour | `modules/repos` |
+| `intent.system.md` | PR intent derivation (L03) | `modules/intent/service.ts` |
+
+The conventions below — severity rubric, verdict mapping, findings discipline —
+are about the `{ verdict, summary, score, findings[] }` review contract and do
+**not** apply to these: each has its own narrow schema with no findings and no
+verdict. What *does* carry over is the rest of this file: the injection framing
+(their inputs are `<untrusted>`-wrapped too), and "do not describe the JSON
+shape in prose" — their schemas are likewise enforced out of band. One extra
+rule is specific to `intent.system.md`: it must never ask the model to rate its
+own confidence, because that number is computed in code from the evidence that
+was actually present.
+
 ## How a prompt is assembled
 
 Assembly happens in `reviewer-core/src/prompt.ts` (`assemblePrompt`). The model

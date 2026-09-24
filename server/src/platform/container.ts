@@ -29,6 +29,7 @@ import { RepoRepository } from '../modules/repos/repository.js';
 import type { RepoIntel } from '../modules/repo-intel/types.js';
 import { RepoIntelService } from '../modules/repo-intel/service.js';
 import { SkillsService } from '../modules/skills/service.js';
+import { IntentService } from '../modules/intent/service.js';
 import { type DepGraph, DepCruiseGraph } from '../adapters/depgraph/index.js';
 import { type Tokenizer, TiktokenTokenizer } from '../adapters/tokenizer/index.js';
 
@@ -80,6 +81,7 @@ export class Container {
   private _tokenizer?: Tokenizer;
   private _priceBook?: PriceBook;
   private _skills?: SkillsService;
+  private _intent?: IntentService;
 
   constructor(config: AppConfig, db: Db, private overrides: ContainerOverrides = {}) {
     this.config = config;
@@ -136,6 +138,17 @@ export class Container {
    */
   get skills(): SkillsService {
     return (this._skills ??= new SkillsService(this));
+  }
+
+  /**
+   * Intent derivation, promoted here for the same reason `skills` is: the
+   * reviews module's `run-executor.ts` needs another module's *business logic*
+   * (collect → propose → verify, plus the head-SHA cache), not its repository.
+   * A Container getter is how a module reaches that — never
+   * `new IntentService(container)` from inside another module's service.
+   */
+  get intent(): IntentService {
+    return (this._intent ??= new IntentService(this));
   }
 
   /** Import-graph builder (dependency-cruiser). T3 indexer pipeline only. */

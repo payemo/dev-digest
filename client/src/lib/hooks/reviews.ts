@@ -8,9 +8,13 @@ import { z } from "zod";
 import { api, API_BASE } from "../api";
 import { notify } from "../toast";
 import { reviewKeys } from "./keys";
-import { PrReviewComment as PrReviewCommentSchema } from "@devdigest/shared";
+import {
+  PrReviewComment as PrReviewCommentSchema,
+  PrIntentRecord as PrIntentRecordSchema,
+} from "@devdigest/shared";
 import type {
   FindingActionKind,
+  PrIntentRecord,
   PrReviewComment,
   ReviewRecord,
   ReviewRunResponse,
@@ -122,6 +126,36 @@ export function useCreatePrComment(prId: string | null | undefined) {
     mutationFn: (input: CreateCommentInput) =>
       api.post<PrReviewComment>(`/pulls/${prId}/comments`, input, PrReviewCommentSchema),
     onSuccess: () => qc.invalidateQueries({ queryKey: reviewKeys.comments(prId) }),
+  });
+}
+
+// ---- Derived PR intent (L03) ----
+/**
+ * The PR's derived intent record, or `null` when nothing has been derived yet.
+ * The server returns `null` rather than 404 for a PR with no row, so there is
+ * no `ApiError` branch to handle here.
+ *
+ * Deliberately NOT polled and NOT refetched on focus: deriving costs money, and
+ * this query only ever READS a row a review run (or an explicit derive) wrote.
+ */
+export function usePrIntent(prId: string | null | undefined) {
+  return useQuery({
+    queryKey: reviewKeys.intent(prId),
+    queryFn: () =>
+      api.get<PrIntentRecord | null>(
+        `/pulls/${prId}/intent`,
+        PrIntentRecordSchema.nullable(),
+      ),
+    enabled: !!prId,
+  });
+}
+
+/** Derive (or re-derive) the intent now — one paid model call; 409 while one runs. */
+export function useDerivePrIntent(prId: string | null | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<PrIntentRecord>(`/pulls/${prId}/intent`, undefined, PrIntentRecordSchema),
+    onSuccess: () => qc.invalidateQueries({ queryKey: reviewKeys.intent(prId) }),
   });
 }
 

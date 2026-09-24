@@ -71,6 +71,19 @@ export interface ReviewInput {
   /** PR author's description/body (untrusted; truncated + delimiter-wrapped in
       the prompt). Empty/undefined → section omitted. */
   prDescription?: string;
+  /**
+   * Derived PR intent, already RESOLVED by the caller (the server derives and
+   * caches it; the engine performs no I/O for it). Untrusted: rendered right
+   * after the PR description, delimiter-wrapped and capped. `confidence` is
+   * computed in code by the caller — the engine never asks a model to score
+   * itself. Empty/undefined → section omitted.
+   */
+  intent?: {
+    summary: string;
+    inScope: string[];
+    outOfScope: string[];
+    confidence: number;
+  };
   /** Task framing line, e.g. "Review PR #482 …". */
   task?: string;
   /** Override the structured-output retry budget. */
@@ -135,6 +148,7 @@ export async function reviewPullRequest(input: ReviewInput): Promise<ReviewOutco
     callers: input.callers,
     repoMap: input.repoMap,
     prDescription: input.prDescription,
+    intent: input.intent,
     task: input.task,
   };
 

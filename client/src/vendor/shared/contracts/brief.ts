@@ -13,6 +13,19 @@ export const Intent = z.object({
 });
 export type Intent = z.infer<typeof Intent>;
 
+/**
+ * One risk area the intent derivation proposed, with the changed-file path it
+ * cites as evidence. The citation is VERIFIED in code against the PR's real
+ * changed paths before the risk is persisted — a risk whose `evidence_path` is
+ * not one of them is dropped, so this field is a claim to be checked, never a
+ * fact. `null` is possible on rows written before verification tightened.
+ */
+export const RiskArea = z.object({
+  label: z.string(),
+  evidence_path: z.string().nullish(),
+});
+export type RiskArea = z.infer<typeof RiskArea>;
+
 // ---- Blast radius ----
 export const ChangedSymbol = z.object({
   name: z.string(),

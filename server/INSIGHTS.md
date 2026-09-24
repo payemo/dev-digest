@@ -29,6 +29,28 @@ purely on the physical identity of the observation (category + evidence_path +
 evidence_line) — never on text a human might change.
 Evidence: `server/src/modules/conventions/helpers.ts` (`ruleKey`).
 
+### 2026-09-24 — `now()` bakes in the column name `created_at`, so it cannot be reused for any other timestamp column
+
+`db/schema/_shared.ts`'s helper is `timestamp('created_at', …)` — the name is
+hardcoded, not derived from the property it is assigned to. Reusing it for a
+differently named column silently produces a `created_at` column that
+contradicts the contract. Spell out `timestamp(name, { withTimezone: true })`
+for anything not actually called `created_at`.
+Evidence: `server/src/db/schema/_shared.ts:9` vs the `derivedAt` column at
+`server/src/db/schema/reviews.ts:99`.
+
+### 2026-09-24 — Pointing a `FEATURE_MODELS` default at a provider the integration tests don't mock turns the hermetic lane live and billed
+
+`container.llm(id)` falls through to the REAL provider when a test's `llm`
+overrides lack that provider, taking the key from `~/.devdigest/secrets.json`.
+Defaulting `review_intent` to `openrouter` made the review integration tests
+issue a live ~11s call: 52/54 in 56.8s with a local key, vs 54/54 in 25.0s under
+`env -u OPENROUTER_API_KEY HOME=<empty dir>`. So CI stays green while local dev
+goes red, and which test loses the timeout race varies. Adding a feature to the
+review pre-work means adding its provider to every review test's overrides.
+Evidence: `server/src/vendor/shared/contracts/platform.ts:57`; failures in
+`server/test/reviews.it.test.ts`.
+
 ## Codebase Patterns
 
 ### 2026-09-19 — A `reviews` row only ever exists for a successful run
@@ -88,6 +110,16 @@ job-handler registration (`repo-intel/routes.ts` does this) — that's a
 narrower, different case.
 Evidence: `server/src/platform/container.ts` (`get skills()`);
 `server/src/modules/conventions/service.ts`.
+
+### 2026-09-24 — To keep a degradable enrichment's failure at `info`, the try/catch must sit INSIDE the function passed to `RunLogger.step`
+
+`step()` catches, emits via `this.error(...)`, and rethrows — so a catch wrapped
+*around* `step` still logs an `error` event and still propagates. In review
+pre-work that propagation reaches `failAll` and fails every queued run.
+`IntentService.ensureForRun` swallows internally instead, which is what lets
+intent degrade to a single `info` line while the review continues.
+Evidence: `server/src/platform/run-logger.ts:87-90` vs
+`server/src/modules/intent/service.ts:168-188`.
 
 ## Tool & Library Notes
 
