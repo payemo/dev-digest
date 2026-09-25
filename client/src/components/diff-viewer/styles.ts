@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { SEV, type Severity } from "@devdigest/ui";
 import type { Line } from "./helpers";
 
 /** Co-located styles for the DiffViewer (extracted from inline styles). */
@@ -28,6 +29,31 @@ export const s = {
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   } satisfies CSSProperties,
+  /** Holds the path and, hard against it, the finding dot. */
+  pathWrap: {
+    display: "flex",
+    alignItems: "center",
+    gap: 7,
+    flex: 1,
+    minWidth: 0,
+  } satisfies CSSProperties,
+  /** `filePath` without the flex-grow — `pathWrap` grows instead. */
+  filePathInline: {
+    fontSize: 13,
+    fontWeight: 500,
+    minWidth: 0,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  } satisfies CSSProperties,
+  /** Presence indicator, no number — NOT the GitHub comment counter. */
+  findingDot: (color: string): CSSProperties => ({
+    width: 7,
+    height: 7,
+    borderRadius: "50%",
+    flexShrink: 0,
+    background: color,
+  }),
   fileStat: { fontSize: 12 } satisfies CSSProperties,
   addText: { color: "var(--code-add-text)" } satisfies CSSProperties,
   delText: { color: "var(--code-del-text)" } satisfies CSSProperties,
@@ -79,6 +105,32 @@ export function chevronFor(open: boolean): CSSProperties {
 export function lineRowFor(kind: Line["kind"]): CSSProperties {
   const background = kind === "add" ? "var(--code-add)" : kind === "del" ? "var(--code-del)" : "transparent";
   return { display: "flex", alignItems: "stretch", fontSize: 13, lineHeight: "20px", background };
+}
+
+/** Coloured left stripe marking a code row that a finding cites. */
+export function findingStripeFor(severity: Severity): CSSProperties {
+  return { borderInlineStart: `3px solid ${SEV[severity].c}` };
+}
+
+/**
+ * The right-aligned `blocker`/`warning`/`suggestion` chip on a cited row.
+ * A plain `<span>` wears this — never Chip/Badge, which are interactive
+ * primitives and would be announced as buttons.
+ */
+export function findingLabel(severity: Severity): CSSProperties {
+  return {
+    alignSelf: "center",
+    flexShrink: 0,
+    margin: "0 10px",
+    padding: "0 7px",
+    borderRadius: 4,
+    fontSize: 10.5,
+    fontWeight: 700,
+    letterSpacing: "0.04em",
+    lineHeight: "16px",
+    background: SEV[severity].bg,
+    color: SEV[severity].c,
+  };
 }
 
 /** Gutter sign colour per line kind. */

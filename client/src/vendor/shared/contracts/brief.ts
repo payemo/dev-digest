@@ -91,7 +91,18 @@ export const PrHistory = z.object({
 export type PrHistory = z.infer<typeof PrHistory>;
 
 // ---- Smart Diff ----
-export const SmartDiffRole = z.enum(['core', 'wiring', 'boilerplate']);
+/**
+ * The role a changed file plays in a PR. The order of the values here IS the
+ * DISPLAY order — `core` first, `boilerplate` last — and every `SmartDiff`
+ * response carries all five groups in it, including empty ones.
+ *
+ * The *matching* order is a separate concern and deliberately differs: a
+ * classifier walks its patterns boilerplate → tests → wiring → docs, with
+ * `core` as the fallthrough. It is owned by
+ * `server/src/modules/smart-diff/constants.ts` (`ROLE_PATTERNS`), not by this
+ * enum. Conflating the two is the bug this note exists to prevent.
+ */
+export const SmartDiffRole = z.enum(['core', 'tests', 'wiring', 'docs', 'boilerplate']);
 export type SmartDiffRole = z.infer<typeof SmartDiffRole>;
 
 export const SmartDiffFile = z.object({
