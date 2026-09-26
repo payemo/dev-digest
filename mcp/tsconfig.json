@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "moduleDetection": "force",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "verbatimModuleSyntax": false,
+    "declaration": false,
+    "sourceMap": true,
+    "composite": false,
+    "noEmit": true,
+    "types": ["node", "vitest/globals"],
+    "lib": ["ES2022"],
+    "paths": {
+      // Contracts are borrowed from the server's vendored shared tree and are
+      // imported TYPE-ONLY here (see CLAUDE.md): `tsc` does not rewrite these
+      // aliases into output, and this package is a long-lived runtime process.
+      "@devdigest/shared": ["../server/src/vendor/shared/index.ts"],
+      "@devdigest/shared/*": ["../server/src/vendor/shared/*"],
+      // Self-pin: without this, aliasing into server/src type-checks against
+      // two different zod copies. Same reason reviewer-core carries it.
+      "zod": ["./node_modules/zod"],
+      "zod/*": ["./node_modules/zod/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts", "vitest.config.ts"]
+}

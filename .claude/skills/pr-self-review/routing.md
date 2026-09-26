@@ -49,7 +49,7 @@ ordinary component: react-best-practices + frontend-code-organization.
 
 ## No lane — deterministic only
 
-`e2e/**`, `scripts/**`, `.github/workflows/**`, `docker-compose.yml`,
+`e2e/**`, `mcp/**`, `scripts/**`, `.github/workflows/**`, `docker-compose.yml`,
 `docs/**`, `*.md`, `.claude/**`. No vendored skill covers them; they get
 [repo-rules.md](repo-rules.md) and nothing else, and their paths are listed in
 `uncovered_files` so the report says so out loud.

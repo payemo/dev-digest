@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "devdigest": {
+      "command": "npx",
+      "args": ["tsx", "mcp/src/server.ts"],
+      "env": {
+        "DEVDIGEST_API_URL": "http://127.0.0.1:3001"
+      }
+    }
+  }
+}
