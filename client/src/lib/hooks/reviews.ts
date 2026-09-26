@@ -11,6 +11,7 @@ import { reviewKeys } from "./keys";
 import {
   PrReviewComment as PrReviewCommentSchema,
   PrIntentRecord as PrIntentRecordSchema,
+  SmartDiff as SmartDiffSchema,
 } from "@devdigest/shared";
 import type {
   FindingActionKind,
@@ -20,6 +21,7 @@ import type {
   ReviewRunResponse,
   RunEvent,
   RunSummary,
+  SmartDiff,
 } from "@devdigest/shared";
 
 // ---- Active (in-flight) runs — server-side source of truth ----
@@ -159,6 +161,23 @@ export function useDerivePrIntent(prId: string | null | undefined) {
   });
 }
 
+// ---- Smart Diff — the PR's changed files grouped by role (L04) ----
+/**
+ * The role grouping for a PR's diff. Cheap and deterministic server-side (no
+ * model call, no new table), so it is safe to fetch on every visit to the
+ * Files changed tab — and it resolves for a PR that has never been reviewed.
+ *
+ * The response carries no patch text: it is an ordering index the caller joins
+ * back onto `pr.files` by path.
+ */
+export function useSmartDiff(prId: string | null | undefined) {
+  return useQuery({
+    queryKey: reviewKeys.smartDiff(prId),
+    queryFn: () => api.get<SmartDiff>(`/pulls/${prId}/smart-diff`, SmartDiffSchema),
+    enabled: !!prId,
+  });
+}
+
 // ---- Run a review (all enabled agents or a specific agent) ----
 export interface RunReviewInput {
   prId: string;
@@ -182,6 +201,9 @@ export function useRunReview() {
       qc.invalidateQueries({ queryKey: reviewKeys.reviews(prId) });
       qc.invalidateQueries({ queryKey: reviewKeys.activeRuns(prId) });
       qc.invalidateQueries({ queryKey: reviewKeys.runs(prId) });
+      // New findings move `finding_lines`, so the grouped diff's counters and
+      // indicators refresh without a page reload.
+      qc.invalidateQueries({ queryKey: reviewKeys.smartDiff(prId) });
     },
   });
 }
@@ -206,7 +228,10 @@ export function useFindingAction() {
         reply ? { reply } : undefined,
       ),
     onSuccess: (_d, { prId }) => {
-      if (prId) qc.invalidateQueries({ queryKey: reviewKeys.reviews(prId) });
+      if (prId) {
+        qc.invalidateQueries({ queryKey: reviewKeys.reviews(prId) });
+        qc.invalidateQueries({ queryKey: reviewKeys.smartDiff(prId) });
+      }
     },
   });
 }

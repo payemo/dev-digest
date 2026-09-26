@@ -10,7 +10,15 @@ _Nothing yet._
 
 ## What Doesn't Work
 
-_Nothing yet._
+### 2026-09-25 — A route-local group header and a shared file-card header sharing `role="button"` + `aria-expanded` collapse into one RTL query
+
+`SmartDiffGroups`' group header and `diff-viewer`'s `FileCard` header both
+render `role="button"` + `aria-expanded`, so `getAllByRole("button")` mixes
+both tiers and a positional slice (e.g. `.slice(0, 5)`) silently grabs file
+cards instead of group headers. Wrap each group in a `<section aria-label={…}>`
+landmark (role `region`) to give group headers a distinct, queryable tier.
+Evidence: `client/src/app/repos/[repoId]/pulls/[number]/_components/SmartDiffGroups/SmartDiffGroups.tsx`
+vs `client/src/components/diff-viewer/FileCard/FileCard.tsx`.
 
 ## Codebase Patterns
 
@@ -79,7 +87,35 @@ family as the `SeverityBadge`-is-a-`<span>` vs `Chip`-is-a-`<button>` entry
 above: what the primitive renders, and what it accepts, are both load-bearing.
 Evidence: `client/src/vendor/ui/primitives/Badge.tsx:5-21`.
 
+### 2026-09-25 — `FileCard`'s path span has `flex: 1`, so anything appended after it renders far-right, not adjacent
+
+`s.filePath` in `diff-viewer/styles.ts` grows to fill the row, so a marker
+meant to sit hard against the path (e.g. a finding-presence dot) needs its own
+non-growing flex wrapper around path + marker, not a sibling element appended
+after `filePath`.
+Evidence: `client/src/components/diff-viewer/styles.ts` (`filePath`,
+`pathWrap`); `client/src/components/diff-viewer/FileCard/FileCard.tsx`.
+
+### 2026-09-25 — `SmartDiffGroups`' per-group collapse state resets whenever `DiffTab` swaps it out for the flat `DiffViewer`
+
+`DiffTab` renders `showGrouped ? <SmartDiffGroups …> : <DiffViewer …>` — the
+ternary unmounts `SmartDiffGroups` when the user picks "Original order", so
+its collapse-state map (seeded from `DEFAULT_COLLAPSED_ROLES`) re-initializes
+on the next "Smart order" click instead of persisting. Anything that needs
+collapse state to survive the toggle must lift it into `DiffTab` (or a ref/
+query param), not assume the component instance persists.
+Evidence: `client/src/app/repos/[repoId]/pulls/[number]/_components/DiffTab/DiffTab.tsx`;
+`client/src/app/repos/[repoId]/pulls/[number]/_components/SmartDiffGroups/SmartDiffGroups.tsx`.
+
 ## Tool & Library Notes
+
+### 2026-09-25 — `@testing-library/user-event` isn't an installed dependency here, despite the vendored `react-testing-library` skill mandating it over `fireEvent`
+
+The skill's guidance and this package's actual `package.json` disagree; adding
+the dependency for one test would touch `pnpm-lock.yaml` (forbidden for a
+one-off — see this package's "Do not touch"). Use `fireEvent` — every existing
+test in this package already does.
+Evidence: `client/package.json` (no `@testing-library/user-event` dependency).
 
 ### 2026-09-21 — `@devdigest/ui`'s `Donut` is built for money, not counts — `MetricCard`'s `suffix` is for a short unit, not a sentence
 

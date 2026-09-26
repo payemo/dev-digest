@@ -121,6 +121,15 @@ intent degrade to a single `info` line while the review continues.
 Evidence: `server/src/platform/run-logger.ts:87-90` vs
 `server/src/modules/intent/service.ts:168-188`.
 
+### 2026-09-25 — A grep-based purity gate can be tripped by a doc comment that merely names the forbidden token, not just by a real import
+
+A "done when" check like `grep -n "container\|drizzle\|db/schema" some/helpers.ts`
+returning nothing fails equally on a comment that says "no Container, no
+Drizzle" in prose as on a real import. Phrase purity/boundary doc comments to
+describe the rule without spelling out the exact token a future grep gate
+searches for.
+Evidence: `server/src/modules/smart-diff/helpers.ts` (purity doc comment).
+
 ## Tool & Library Notes
 
 ### 2026-09-21 — `drizzle-kit generate` prompts interactively when one pass both drops and adds columns on the same table, and the prompt can't be answered non-interactively
