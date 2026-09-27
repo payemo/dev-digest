@@ -7,7 +7,7 @@ course lesson (L01–L08) adds one feature back — see the table in
 
 ## Layout
 
-Four **standalone packages** — no monorepo workspace. Each has its own
+Five **standalone packages** — no monorepo workspace. Each has its own
 `package.json` and lockfile; cross-package code is shared through **tsconfig
 path aliases**, never published/built modules.
 
@@ -17,6 +17,7 @@ path aliases**, never published/built modules.
 | `client/`        | `@devdigest/web`           | Next.js 15 App Router (the studio)                 | 3000 |
 | `reviewer-core/` | `@devdigest/reviewer-core` | Pure engine: diff → prompt → LLM → findings        | —    |
 | `e2e/`           | `@devdigest/e2e`           | Deterministic browser e2e (agent-browser)          | —    |
+| `mcp/`           | `@devdigest/mcp`           | Local MCP server (stdio) for coding agents         | —    |
 | `server/src/vendor/shared` | `@devdigest/shared` | Zod contracts shared by every package             | —    |
 
 `repo-intel` (codebase indexer behind the **Indexed** badge, feeds project
@@ -25,7 +26,8 @@ context into reviews) lives inside the server at
 
 **Each package has its own `CLAUDE.md` — read it before touching that package**:
 [client](client/CLAUDE.md) · [server](server/CLAUDE.md) ·
-[reviewer-core](reviewer-core/CLAUDE.md) · [e2e](e2e/CLAUDE.md).
+[reviewer-core](reviewer-core/CLAUDE.md) · [e2e](e2e/CLAUDE.md) ·
+[mcp](mcp/CLAUDE.md).
 
 ## Commands
 
@@ -39,7 +41,8 @@ Run everything **from the package directory**, not the root — there is no root
   ports, torn down after.
 - `server/`, `client/`: `pnpm dev` · `build` · `typecheck` · `test`
   (+ server `db:migrate` / `db:seed` / `db:generate`).
-- `reviewer-core/`, `e2e/`: **npm**, not pnpm (`npm test`, `npm run typecheck`).
+- `reviewer-core/`, `e2e/`, `mcp/`: **npm**, not pnpm (`npm test`,
+  `npm run typecheck`).
 - **No linter is configured in any package.** `typecheck` is the enforced
   static-analysis gate; there is no `lint` script and no ESLint config to run
   alongside it.
@@ -97,7 +100,7 @@ writes a verdict. A `PreToolUse` hook reads that verdict and **denies
 ## Non-default conventions
 
 - **No workspace.** Never add a root `package.json`, hoist deps, or convert the
-  four packages into a pnpm workspace — the split is deliberate, and CI's
+  five packages into a pnpm workspace — the split is deliberate, and CI's
   path filters depend on it.
 - **Package managers differ**: `server`/`client` use pnpm, `reviewer-core`/`e2e`
   use npm. Use the one the package already has a lockfile for.
