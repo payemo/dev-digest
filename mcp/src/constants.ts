@@ -48,6 +48,21 @@ export const MAX_SUMMARY_CHARS = 600;
 export const DEFAULT_FINDINGS_LIMIT = 20;
 export const DEFAULT_CONVENTIONS_LIMIT = 25;
 
+/**
+ * Blast radius is paged by CHANGED SYMBOL, and a PR touching more than ten of
+ * them is already past the point where a reader can hold the list in their
+ * head — so ten is the default page, and `offset` exists for the rest.
+ */
+export const DEFAULT_BLAST_SYMBOL_LIMIT = 10;
+
+/**
+ * Callers shown per symbol. The server already caps the caller fan-out it
+ * resolves; this is the narrower per-symbol cap for a model's context, where
+ * the fifth caller of a symbol adds much less than the first caller of the next
+ * one. A cut list always says how many were dropped.
+ */
+export const MAX_BLAST_CALLERS_PER_SYMBOL = 5;
+
 /** An error that lists candidates must not itself blow the budget. */
 export const MAX_CANDIDATES_IN_ERROR = 20;
 

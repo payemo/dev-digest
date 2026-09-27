@@ -9,12 +9,14 @@ import {
 import {
   capResponse,
   formatAgents,
+  formatBlastRadius,
   formatConventions,
   formatFindings,
   formatVerdict,
   paginate,
   truncationFooter,
 } from '../src/format.js';
+import type { DownstreamImpact } from '@devdigest/shared';
 import { agent, convention, finding, review } from './fixtures.js';
 
 describe('projections keep expensive fields out of a model context', () => {
@@ -133,5 +135,45 @@ describe('errors name the next call', () => {
     expect(result.isError).toBe(false);
     expect(result.content[0]!.text).toContain('get_findings');
     expect(result.content[0]!.text).toContain('Do NOT call run_agent_on_pr again');
+  });
+});
+
+describe('blast radius is an allowlist with a per-symbol caller cap', () => {
+  const entry = (over: Partial<DownstreamImpact> = {}): DownstreamImpact => ({
+    symbol: 'rateLimit',
+    callers: [{ name: 'listItems', file: 'src/api/public/index.ts', line: 23 }],
+    endpoints_affected: ['GET /api/public/items'],
+    crons_affected: ['reset-rate-buckets (hourly)'],
+    ...over,
+  });
+
+  it('returns exactly the five projected fields, never a field added later', () => {
+    const withExtra = { ...entry(), risk_score: 99, raw_patch: 'LEAKED' } as DownstreamImpact;
+    const [out] = formatBlastRadius([withExtra], () => 'src/api/rate-limit.ts');
+
+    expect(Object.keys(out!).sort()).toEqual([
+      'callers',
+      'crons_affected',
+      'declared_in',
+      'endpoints_affected',
+      'symbol',
+    ]);
+    expect(JSON.stringify(out)).not.toContain('LEAKED');
+    expect(out!.declared_in).toBe('src/api/rate-limit.ts');
+    expect(out!.callers).toEqual(['src/api/public/index.ts:23 (listItems)']);
+  });
+
+  it('caps callers per symbol and says how many were dropped', () => {
+    const callers = Array.from({ length: 9 }, (_, i) => ({
+      name: `caller${i}`,
+      file: `src/f${i}.ts`,
+      line: i + 1,
+    }));
+    const [out] = formatBlastRadius([entry({ callers })], () => null);
+
+    // Five shown plus one marker line — never a silent cut.
+    expect(out!.callers).toHaveLength(6);
+    expect(out!.callers.at(-1)).toBe('+4 more callers');
+    expect(out!.declared_in).toBeNull();
   });
 });

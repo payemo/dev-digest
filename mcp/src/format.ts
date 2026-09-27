@@ -1,5 +1,12 @@
-import type { Agent, ConventionCandidate, FindingRecord, ReviewRecord } from '@devdigest/shared';
+import type {
+  Agent,
+  ConventionCandidate,
+  DownstreamImpact,
+  FindingRecord,
+  ReviewRecord,
+} from '@devdigest/shared';
 import {
+  MAX_BLAST_CALLERS_PER_SYMBOL,
   MAX_RATIONALE_CHARS,
   MAX_RESPONSE_CHARS,
   MAX_SUMMARY_CHARS,
@@ -125,6 +132,41 @@ export function formatConventions(
       ...base,
       rationale: c.rationale === null ? null : truncate(c.rationale, MAX_RATIONALE_CHARS),
       evidence: c.evidence_path === null ? null : `${c.evidence_path}:${c.evidence_line ?? '?'}`,
+    };
+  });
+}
+
+export interface BlastEntry {
+  symbol: string;
+  declared_in: string | null;
+  callers: string[];
+  endpoints_affected: string[];
+  crons_affected: string[];
+}
+
+/**
+ * Blast radius, by allowlist. Callers collapse to `"file:line (name)"` strings
+ * rather than objects — three keys per caller repeated across a page is pure
+ * token cost for data a model reads as a location anyway.
+ *
+ * `declaredIn` is passed in because the response keys `downstream` by the bare
+ * symbol name; the declaring file lives in `changed_symbols`.
+ */
+export function formatBlastRadius(
+  entries: DownstreamImpact[],
+  declaredIn: (symbol: string) => string | null,
+): BlastEntry[] {
+  return entries.map((entry) => {
+    const shown = entry.callers.slice(0, MAX_BLAST_CALLERS_PER_SYMBOL);
+    const dropped = entry.callers.length - shown.length;
+    const callers = shown.map((c) => `${c.file}:${c.line} (${c.name})`);
+    if (dropped > 0) callers.push(`+${dropped} more callers`);
+    return {
+      symbol: entry.symbol,
+      declared_in: declaredIn(entry.symbol),
+      callers,
+      endpoints_affected: entry.endpoints_affected,
+      crons_affected: entry.crons_affected,
     };
   });
 }

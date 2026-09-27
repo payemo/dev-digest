@@ -15,6 +15,7 @@ export const reviewKeys = {
   comments: (prId: string | null | undefined) => ["pr-comments", prId] as const,
   intent: (prId: string | null | undefined) => ["pr-intent", prId] as const,
   smartDiff: (prId: string | null | undefined) => ["pr-smart-diff", prId] as const,
+  blast: (prId: string | null | undefined) => ["pr-blast", prId] as const,
 };
 
 /**

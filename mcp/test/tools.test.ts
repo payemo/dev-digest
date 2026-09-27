@@ -5,7 +5,7 @@ import getConventions from '../src/tools/get-conventions.js';
 import getFindings from '../src/tools/get-findings.js';
 import listAgents from '../src/tools/list-agents.js';
 import runAgentOnPr from '../src/tools/run-agent-on-pr.js';
-import { agent, convention, finding, pull, repo, review } from './fixtures.js';
+import { agent, blast, convention, finding, pull, repo, review } from './fixtures.js';
 import { calls, json, mockFetch, timeoutError } from './http.js';
 
 const REPO = 'acme/payments-api';
@@ -169,15 +169,68 @@ describe('run_agent_on_pr', () => {
 });
 
 describe('get_blast_radius', () => {
-  it('explains itself without an error and without touching the network', async () => {
-    mockFetch({});
+  it('reports callers and the endpoints they serve, from the code index', async () => {
+    mockFetch({ ...resolution, 'GET /pulls/pr-1/blast': blast() });
     const result = await getBlastRadius.handler({ repo: REPO, pr: 42 });
-    // Not an error: isError says "retrying might work", and for a tool that
-    // does not exist yet, retrying can only waste turns.
+
     expect(result.isError).toBe(false);
-    expect(body(result)).toContain('Do not retry');
-    expect(body(result)).toContain('repo-intel');
-    expect(calls).toHaveLength(0);
+    const text = body(result);
+    expect(text).toContain('rateLimit');
+    expect(text).toContain('src/api/public/index.ts:23 (listItems)');
+    expect(text).toContain('GET /api/public/items');
+    // The stub made no network call at all; this one must.
+    expect(calls.map((c) => `${c.method} ${c.url}`)).toContain('GET /pulls/pr-1/blast');
+  });
+
+  it('names Re-analyze when the repo is not indexed, and does NOT call it an error', async () => {
+    mockFetch({
+      ...resolution,
+      'GET /pulls/pr-1/blast': blast({
+        changed_symbols: [],
+        downstream: [],
+        degraded: true,
+        reason: 'no_data',
+      }),
+    });
+    const result = await getBlastRadius.handler({ repo: REPO, pr: 42 });
+
+    // isError means "retrying might help"; no retry can index a repository.
+    expect(result.isError).toBe(false);
+    expect(body(result)).toContain('Re-analyze');
+    expect(body(result)).toContain('no_data');
+  });
+
+  it('flags an incomplete index as a note when there IS data', async () => {
+    mockFetch({
+      ...resolution,
+      'GET /pulls/pr-1/blast': blast({ degraded: true, reason: 'index_partial' }),
+    });
+    const text = body(await getBlastRadius.handler({ repo: REPO, pr: 42 }));
+
+    expect(text).toContain('index_note');
+    expect(text).toContain('rateLimit');
+  });
+
+  it('reports an unknown PR without ever asking for its blast radius', async () => {
+    mockFetch({ ...resolution });
+    const result = await getBlastRadius.handler({ repo: REPO, pr: 999 });
+
+    expect(result.isError).toBe(true);
+    expect(body(result)).toContain('#999');
+    expect(calls.map((c) => c.url)).not.toContain('/pulls/pr-1/blast');
+  });
+
+  it('hands a transport failure to the advice the agent can act on', async () => {
+    mockFetch({
+      ...resolution,
+      'GET /pulls/pr-1/blast': () => {
+        throw timeoutError();
+      },
+    });
+    const result = await getBlastRadius.handler({ repo: REPO, pr: 42 });
+
+    expect(result.isError).toBe(true);
+    expect(body(result)).toContain('did not respond in time');
   });
 });
 

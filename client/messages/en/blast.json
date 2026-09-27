@@ -1,4 +1,8 @@
 {
+  "heading": "Blast radius",
+  "empty": "Nothing the index can reach",
+  "emptyHint": "This PR's changed files declare no symbols the code index knows about, so there is no downstream impact to show.",
+  "error": "Could not load the blast radius",
   "stat": {
     "symbols": "symbols",
     "callers": "callers",
@@ -7,12 +11,37 @@
   },
   "view": {
     "tree": "tree",
-    "graph": "graph"
+    "graph": "graph",
+    "ariaLabel": "Blast radius view"
   },
-  "callerCount": "{count} callers",
+  "callerCount": "{count, plural, one {# caller} other {# callers}}",
   "noDownstream": "{count} changed symbol(s), no downstream callers found.",
+  "symbol": {
+    "declaredIn": "declared in {file}"
+  },
+  "degraded": {
+    "badge": "Index incomplete",
+    "hint": "The code index is incomplete, so callers and endpoints may be missing. Re-analyze the repository to rebuild it.",
+    "resync": "Re-analyze",
+    "resyncing": "Re-analyzing…",
+    "reason": {
+      "flagOff": "Indexing is switched off",
+      "indexFailed": "Indexing failed",
+      "indexPartial": "Partially indexed",
+      "repoTooLarge": "Repository too large to index",
+      "noData": "Not indexed yet",
+      "unknown": "Index unavailable"
+    }
+  },
   "graph": {
     "empty": "No downstream callers to graph.",
-    "ariaLabel": "Blast radius graph"
+    "ariaLabel": "Blast radius graph",
+    "more": "+{count} more",
+    "legend": {
+      "symbol": "changed symbol",
+      "caller": "caller",
+      "endpoint": "endpoint"
+    },
+    "moreNodes": "+{count} not shown"
   }
 }
