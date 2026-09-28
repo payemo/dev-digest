@@ -12,8 +12,10 @@ import {
   PrReviewComment as PrReviewCommentSchema,
   PrIntentRecord as PrIntentRecordSchema,
   SmartDiff as SmartDiffSchema,
+  BlastRadiusResponse as BlastRadiusResponseSchema,
 } from "@devdigest/shared";
 import type {
+  BlastRadiusResponse,
   FindingActionKind,
   PrIntentRecord,
   PrReviewComment,
@@ -174,6 +176,31 @@ export function useSmartDiff(prId: string | null | undefined) {
   return useQuery({
     queryKey: reviewKeys.smartDiff(prId),
     queryFn: () => api.get<SmartDiff>(`/pulls/${prId}/smart-diff`, SmartDiffSchema),
+    enabled: !!prId,
+  });
+}
+
+// ---- Blast radius — what else in the repo this PR's diff can reach (L04) ----
+/**
+ * `BlastRadiusResponse` — the shared contract, which is `BlastRadius` plus the
+ * two optional fields saying whether the code index was usable.
+ *
+ * Parse with THIS schema, never the bare `BlastRadius`: zod objects strip
+ * unknown keys, so the narrower schema would silently delete `degraded` and
+ * `reason` from the parsed result and the UI could never report a stale index.
+ */
+export type PrBlastRadius = BlastRadiusResponse;
+
+/**
+ * Who calls the symbols this PR changed, and which endpoints/crons reach them.
+ * Cheap and deterministic server-side (no model call, no new table — it reads
+ * the index repo-intel built at clone time), so it resolves for a PR that has
+ * never been reviewed. An unindexed repo answers `degraded` rather than failing.
+ */
+export function usePrBlastRadius(prId: string | null | undefined) {
+  return useQuery({
+    queryKey: reviewKeys.blast(prId),
+    queryFn: () => api.get<PrBlastRadius>(`/pulls/${prId}/blast`, BlastRadiusResponseSchema),
     enabled: !!prId,
   });
 }

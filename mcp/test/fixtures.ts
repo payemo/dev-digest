@@ -1,5 +1,6 @@
 import type {
   Agent,
+  BlastRadiusResponse,
   ConventionCandidate,
   FindingRecord,
   PrMeta,
@@ -111,6 +112,22 @@ export function convention(over: Partial<ConventionCandidate> = {}): ConventionC
     status: 'approved',
     created_at: null,
     updated_at: null,
+    ...over,
+  };
+}
+
+export function blast(over: Partial<BlastRadiusResponse> = {}): BlastRadiusResponse {
+  return {
+    changed_symbols: [{ name: 'rateLimit', file: 'src/api/rate-limit.ts', kind: 'function' }],
+    downstream: [
+      {
+        symbol: 'rateLimit',
+        callers: [{ name: 'listItems', file: 'src/api/public/index.ts', line: 23 }],
+        endpoints_affected: ['GET /api/public/items'],
+        crons_affected: [],
+      },
+    ],
+    summary: '1 changed symbol(s), 1 caller(s) in 1 file(s), 1 endpoint(s), 0 cron(s).',
     ...over,
   };
 }

@@ -130,6 +130,30 @@ describe the rule without spelling out the exact token a future grep gate
 searches for.
 Evidence: `server/src/modules/smart-diff/helpers.ts` (purity doc comment).
 
+### 2026-09-27 — `repo-intel`'s persistent caller resolution has no explicit self-file filter; only the ripgrep fallback does
+
+`RepoIntelRepository.getResolvedCallers` excludes a symbol's own declaring file
+from its callers only STRUCTURALLY (a file never imports itself), unlike the
+ripgrep fallback in `RepoIntelService.getBlastRadius`, which filters it out
+explicitly. A consumer that needs "never returns a symbol's own file as its
+caller" as a hard guarantee across both paths must re-filter defensively rather
+than trust the facade uniformly.
+Evidence: `server/src/modules/repo-intel/repository.ts:524-529` (no filter) vs
+`server/src/modules/repo-intel/service.ts:272` (explicit filter); re-filtered
+defensively in `server/src/modules/blast/helpers.ts`.
+
+### 2026-09-27 — `MAX_CALLERS_PER_SYMBOL` is documented as per-symbol but enforced globally
+
+`repo-intel/constants.ts` comments `MAX_CALLERS_PER_SYMBOL = 20` as "Caller
+fan-out cap per changed symbol", but `RepoIntelService.getBlastRadius` applies
+it as `callers.slice(0, 20)` over the whole rank-sorted FLAT list, after every
+symbol's callers have already been merged together. A PR that changes several
+symbols can see a low-ranked symbol lose all of its callers to a higher-ranked
+one, contradicting the "per symbol" framing in the doc comment. Don't trust the
+comment when reasoning about how many callers a given symbol will show.
+Evidence: `server/src/modules/repo-intel/constants.ts:29-30` (doc comment) vs
+`server/src/modules/repo-intel/service.ts:386` (`callers.slice(0, 20)`).
+
 ## Tool & Library Notes
 
 ### 2026-09-21 — `drizzle-kit generate` prompts interactively when one pass both drops and adds columns on the same table, and the prompt can't be answered non-interactively

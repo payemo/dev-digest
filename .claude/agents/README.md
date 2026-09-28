@@ -10,18 +10,22 @@ file itself for its full method and constraints.
 | Agent | Responsibility | Tools | Model |
 |---|---|---|---|
 | [researcher](researcher.md) | Answers one research question (repo or external) with citations | `Read, Grep, Glob, Bash, WebFetch, WebSearch` | `sonnet` |
+| [brainstorm](brainstorm.md) | Explores an open-ended problem into several grounded candidate approaches, picks none | `Read, Grep, Glob, Bash, WebFetch, WebSearch` | `opus` |
 | [planner](planner.md) | Turns a change request into a self-contained Development Plan | `Read, Grep, Glob, Bash, Skill` | `opus` |
 | [implementer](implementer.md) | Executes an approved plan across `client/`/`server/`, runs its tests | `Read, Grep, Glob, Edit, Write, Bash, Skill` | `opus` |
 | [test-writer](test-writer.md) | Writes and runs tests for existing client/server/reviewer-core code | `Read, Grep, Glob, Edit, Write, Bash, Skill` (+ `skills: react-testing-library`) | `opus` |
 | [architecture-reviewer](architecture-reviewer.md) | Physically read-only; reviews onion-architecture boundaries only, with evidence | `Read, Grep, Glob, Bash` (+ `skills: onion-architecture`) | `opus` |
+| [security-reviewer](security-reviewer.md) | Physically read-only; reviews exploitable security weaknesses only, with evidence | `Read, Grep, Glob, Bash` (+ `skills: security`) | `opus` |
 | [plan-verifier](plan-verifier.md) | Read-only; reconciles a finished diff against a specific Development Plan, step by step | `Read, Grep, Glob, Bash, Skill` | `opus` |
 | [doc-writer](doc-writer.md) | Turns a plan/diff/feature into documentation in the correct `docs/`/`specs/` location | `Read, Grep, Glob, Bash, Write, Edit, Skill` | `sonnet` |
 
-None of the seven has `Agent` in its tool list — none can spawn further
-agents. `architecture-reviewer` covers layering and dependency direction
-**only** — not general correctness, not security. Security review and PR
-creation remain **not** covered by any agent here; `pr-self-review` (a skill,
-not an agent) gates `gh pr create` via `.claude/hooks/pr-self-review-gate.sh`.
+None of the nine has `Agent` in its tool list — none can spawn further agents.
+`architecture-reviewer` covers layering and dependency direction only;
+`security-reviewer` covers exploitable security weaknesses only — between
+them, this pipeline's two read-only review agents still don't cover general
+correctness (`/code-review`) or test quality (`test-writer`). PR creation
+remains **not** covered by any agent here; `pr-self-review` (a skill, not an
+agent) gates `gh pr create` via `.claude/hooks/pr-self-review-gate.sh`.
 
 ## Responsibilities, permissions, artifacts
 
@@ -38,6 +42,24 @@ not an agent) gates `gh pr create` via `.claude/hooks/pr-self-review-gate.sh`.
 - **Output:** its final message — a markdown report (repo-research or
   external-research shape) ending in a self-check list. Nothing is written to
   disk.
+
+### brainstorm
+
+- **Does:** explores an open-ended problem across the affected package(s) and
+  returns several genuinely different, grounded candidate approaches with
+  their tradeoffs — for use *before* `planner` commits to one.
+- **Does not:** pick a winner (a marked *leaning* is the one exception), write
+  a Development Plan or anything under `docs/plans/`, write product code, or
+  spawn agents.
+- **Permissions:** read-only + web (`Read, Grep, Glob, Bash, WebFetch,
+  WebSearch`) — identical to `researcher`'s, since both explore before they
+  report. `Write`/`Edit` are absent entirely; `Bash` is inspection-only.
+- **Input:** an open-ended problem or change, handed in the delegation prompt
+  (no shared history).
+- **Output:** its final message — a report naming 2-4 options, each with what
+  it touches, why it fits, its costs, and a citation for every claimed
+  tradeoff, plus *Open questions* and a *Next step* pointing at `planner`.
+  Nothing is written to disk.
 
 ### planner
 
@@ -112,6 +134,24 @@ not an agent) gates `gh pr create` via `.claude/hooks/pr-self-review-gate.sh`.
   findings" line), the `depcruise`/`typecheck` output verbatim, and what was
   outside its single concern and therefore not reviewed.
 
+### security-reviewer
+
+- **Does:** reviews a diff for exploitable security weaknesses only — OWASP
+  Top 10 classes, prompt injection into `reviewer-core/`'s model calls, and
+  this repo's own secret-handling rule (`SecretsProvider` only) — running the
+  `security` skill, and returns findings with a `file:line` citation and a
+  0.0–1.0 confidence score each (floor 0.7).
+- **Does not:** review architecture/layering, general correctness, tests,
+  performance, or naming; fix what it finds; compute a score/verdict; open a
+  PR; or spawn agents.
+- **Permissions:** `Read, Grep, Glob, Bash` — no `Write`/`Edit`/`Agent`, and
+  `Skill` is deliberately absent from `tools:` since `security` is preloaded
+  via `skills:` — the agent cannot reach for an unrelated skill mid-review.
+- **Input:** a diff or target to review.
+- **Output:** its final message — a findings table (or an explicit "no
+  findings" line) and what was outside its single concern and therefore not
+  reviewed.
+
 ### plan-verifier
 
 - **Does:** reconciles a finished diff against a specific Development Plan
@@ -146,6 +186,15 @@ not an agent) gates `gh pr create` via `.claude/hooks/pr-self-review-gate.sh`.
 - **Input:** a plan file path, a diff, or a described feature.
 - **Output:** the doc file(s) themselves, plus a final message giving the
   path(s), the placement reasoning, and whether a diagram was added and why.
+
+## Handoff: brainstorm → planner
+
+`brainstorm` never decides, so its report hands `planner` a set of options,
+not an instruction. The human (or the caller) picks one — including
+`brainstorm`'s own *leaning*, when it states one — and hands `planner` the
+chosen option, not the whole report: `planner` plans one concrete change, and
+re-reading rejected alternatives would only invite it to re-litigate a
+decision that has already been made.
 
 ## Handoff: planner → implementer
 
@@ -220,14 +269,28 @@ Research for these four ran as four independent `researcher` calls plus one
 | [`pr-self-review/repo-rules.md:116-123`](../skills/pr-self-review/repo-rules.md) and `.github/workflows/client.yml` (this repo) | `client/src/vendor/shared` is a **physical copy** of `server/src/vendor/shared`, not an alias — corrects the "propagates by alias" wording in root `CLAUDE.md` | `plan-verifier`'s contract-field check re-runs `diff -r client/src/vendor/shared server/src/vendor/shared` rather than trusting a report |
 | [`docs/agent-prompts/README.md:71`](../../docs/agent-prompts/README.md) (this repo) | "Do not describe the JSON shape, field names, or a markdown layout in the prompt" | `doc-writer`'s "explain mechanism, never restate a signature" rule |
 
+### Sources for brainstorm / security-reviewer
+
+Unlike the nine agents above, `brainstorm` and `security-reviewer` were not
+each grounded in a fresh external research pass — they reuse this repo's own
+established shape instead, and that reuse is the grounding:
+
+| Source | Rule | Where applied |
+|---|---|---|
+| [`researcher.md`](researcher.md) (this repo) | Read-only exploration agent shape: frontmatter fields, Step 0 clarifying-questions gate, grounded report format, Quality bar checklist | `brainstorm.md`'s structure is `researcher.md`'s, adapted from "answer one question" to "generate several grounded options" |
+| [`architecture-reviewer.md`](architecture-reviewer.md) (this repo) | Read-only reviewer shape: exclusion-list scoping, grounding-before-confidence, the existing `confidence: 0-1` field with a 0.7 floor, `CRITICAL/WARNING/SUGGESTION` reused rather than invented | `security-reviewer.md` reuses this shape verbatim, swapping the onion-architecture concern for exploitable security weaknesses |
+| [`docs/agent-prompts/security-reviewer.md`](../../docs/agent-prompts/security-reviewer.md) (this repo) | DevDigest's own LLM security-reviewer prompt: OWASP Top 10 scope, the lethal-trifecta definition and its conservative-classification rule, severity/verdict discipline | `security-reviewer.md`'s scope section and lethal-trifecta paragraph are adapted from this file, applied to this repo's own code instead of a reviewed PR's |
+| `server/CLAUDE.md` Gotchas — `INJECTION_GUARD` | Prompt-injection defense is the single guard text, not keyword scanning — don't add a denylist | `security-reviewer.md`'s repo-specific risk-shapes paragraph names this explicitly, including "a new denylist is also a finding" |
+
 Two items flagged during research are **not** adopted here and are called out
 rather than silently skipped:
 
 - Extended frontmatter fields (`isolation: worktree`, `maxTurns`,
   `omitClaudeMd`, `experimental.cacheTtl`) exist in current docs but are
   version-gated; the CLI version in this environment wasn't verifiable, so
-  none of the seven agents uses them.
-- "Does NOT cover X" negative-scoping in a `description` (used by all seven
+  none of the nine agents uses them (`brainstorm` and `security-reviewer`
+  followed the same precedent when added later, without re-verifying).
+- "Does NOT cover X" negative-scoping in a `description` (used by all nine
   descriptions above) matches this repo's own precedent in
   [`pr-self-review/SKILL.md:11`](../skills/pr-self-review/SKILL.md#L11), not a
   documented Anthropic pattern — the research explicitly could not confirm it

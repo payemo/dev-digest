@@ -56,6 +56,33 @@ export const BlastRadius = z.object({
 });
 export type BlastRadius = z.infer<typeof BlastRadius>;
 
+/**
+ * The wire shape of `GET /pulls/:id/blast`: the map above, plus whether the
+ * repo index was usable when it was built.
+ *
+ * It EXTENDS `BlastRadius` rather than widening it, so `PrBrief` — which
+ * composes `BlastRadius` below — keeps its exact shape. A brief has no use for
+ * "was the index usable?"; a live endpoint does, because the repo-intel facade
+ * never throws and answers an unusable index with empty arrays. Without these
+ * two fields the client cannot tell "nothing calls this" from "we could not
+ * look", which are opposite conclusions for a reviewer.
+ *
+ * `reason` is a plain `z.string()`, NOT a closed enum over the five known
+ * `DegradedReason` members. This schema is declared as the route's
+ * `response.200`, so a reason value outside a closed enum would fail
+ * serialization and 500 — on the one path whose whole contract is "never
+ * throws". Type safety is kept where it matters: the server assigns from the
+ * narrowly-typed `BlastResult.reason`, so a typo is still a compile error, and
+ * the client maps known reasons to labels with a generic fallback.
+ */
+export const BlastRadiusResponse = BlastRadius.extend({
+  /** True when the index was unusable or incomplete — results may be partial. */
+  degraded: z.boolean().optional(),
+  /** Why it degraded (a `DegradedReason` value; open on the wire — see above). */
+  reason: z.string().optional(),
+});
+export type BlastRadiusResponse = z.infer<typeof BlastRadiusResponse>;
+
 // ---- Risks ----
 export const RiskSeverity = z.enum(['high', 'medium', 'low']);
 export type RiskSeverity = z.infer<typeof RiskSeverity>;

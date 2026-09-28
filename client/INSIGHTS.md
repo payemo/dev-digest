@@ -147,6 +147,15 @@ on `document.querySelector("textarea").value` directly for multi-line content
 (a Markdown skill body, a multi-line diff) instead of `getByDisplayValue`.
 Evidence: `client/src/app/repos/[repoId]/conventions/_components/CreateSkillModal/CreateSkillModal.test.tsx`.
 
+### 2026-09-27 — `--info` in the vendored token set is grey, not blue, in both themes
+
+`vendor/ui/styles.css` defines `--info: #6b7280` under both `:root` (dark) and
+`:root[data-theme="light"]` — the same value as `--stale`, not an informational
+blue. A component reaching for "info blue" by name gets grey instead; the
+actual blues are `--accent`, `--accent-text`, `--sugg`. Verify a token's real
+value before picking it for a semantic meaning its name suggests.
+Evidence: `client/src/vendor/ui/styles.css:31` (dark), `:70` (light).
+
 ## Recurring Errors & Fixes
 
 _Nothing yet._

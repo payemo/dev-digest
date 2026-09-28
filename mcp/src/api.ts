@@ -1,6 +1,7 @@
 import type { Repo, PrMeta, ApiErrorBody } from '@devdigest/shared';
 import type { Agent, ConventionCandidate } from '@devdigest/shared';
 import type { ReviewRecord, ReviewRunResponse } from '@devdigest/shared';
+import type { BlastRadiusResponse } from '@devdigest/shared';
 import { DEFAULT_API_URL, HTTP_TIMEOUT_MS, REVIEW_TIMEOUT_MS } from './constants.js';
 
 /**
@@ -101,6 +102,15 @@ export function listConventions(repoId: string): Promise<ApiResult<ConventionCan
 
 export function reviewsForPull(prId: string): Promise<ApiResult<ReviewRecord[]>> {
   return request<ReviewRecord[]>(`/pulls/${encodeURIComponent(prId)}/reviews`);
+}
+
+/**
+ * Who calls the symbols a PR changed, and what depends on those callers. Reads
+ * the code index — no model call — so the DEFAULT timeout applies, never the
+ * review one.
+ */
+export function blastRadius(prId: string): Promise<ApiResult<BlastRadiusResponse>> {
+  return request<BlastRadiusResponse>(`/pulls/${encodeURIComponent(prId)}/blast`);
 }
 
 /**

@@ -12,7 +12,7 @@ export default defineTool({
   name: 'list_agents',
   title: 'List reviewer agents',
   description:
-    'List the DevDigest reviewer agents configured in this workspace, with the model each uses and whether it is enabled. Call this to get a valid agent name for run_agent_on_pr. Takes no arguments. Read-only.',
+    'List the DevDigest reviewer agents configured in this workspace, with each one\'s id, model, and whether it is enabled. Call this to get a valid agent name (or id, when two agents share a name) for run_agent_on_pr and get_findings. Takes no arguments. Read-only.',
   shape: {},
   readOnly: true,
   handler: async () => {
