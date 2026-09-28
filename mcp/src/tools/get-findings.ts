@@ -16,16 +16,24 @@ export default defineTool({
   name: 'get_findings',
   title: 'Get review findings for a pull request',
   description:
-    'Read the result of a review that has ALREADY run on a pull request: verdict, score, summary, and each finding with its file and line. Use it after run_agent_on_pr, or to check whether a PR was reviewed at all. Reports the most recent review unless "agent" names one. Does not start a review. Read-only.',
+    'Read the result of reviews that have ALREADY run on a pull request: for each agent that has reviewed it, its verdict, score, summary, and each finding with its file and line. Use it after run_agent_on_pr, or to check whether a PR was reviewed at all. Reports every agent\'s most recent review, or only the named agent\'s if "agent" is given. Does not start a review. Read-only.',
   shape: {
     repo: repoArg,
     pr: prArg,
     agent: z
       .string()
       .optional()
-      .describe('Report this agent\'s review instead of the most recent one. Name from list_agents.'),
+      .describe(
+        'Report only this agent\'s review instead of every agent\'s. Name or id from list_agents.',
+      ),
     response_format: responseFormatArg,
-    limit: z.number().int().min(1).max(100).optional().describe('Max findings to return (default 20).'),
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .optional()
+      .describe('Max findings to return per agent (default 20).'),
     offset: z.number().int().min(0).optional().describe('Index to start from, for paging.'),
   },
   readOnly: true,
@@ -38,15 +46,27 @@ export default defineTool({
 
     const wanted = agent?.trim().toLowerCase();
     const candidates = wanted
-      ? res.data.filter((r) => (r.agent_name ?? '').toLowerCase() === wanted)
+      ? res.data.filter(
+          (r) => (r.agent_name ?? '').toLowerCase() === wanted || (r.agent_id ?? '').toLowerCase() === wanted,
+        )
       : res.data;
 
-    // The endpoint returns newest-first; sort defensively rather than trust it.
-    const [latest] = [...candidates].sort((a, b) => b.created_at.localeCompare(a.created_at));
+    // One entry per agent: the endpoint returns every run ever made, so an
+    // agent reviewed twice must collapse to its OWN most recent review, not
+    // be picked apart across the whole PR.
+    const latestByAgent = new Map<string, (typeof candidates)[number]>();
+    for (const review of candidates) {
+      const key = review.agent_id ?? review.agent_name ?? review.id;
+      const current = latestByAgent.get(key);
+      if (!current || review.created_at > current.created_at) latestByAgent.set(key, review);
+    }
+    const reviews = [...latestByAgent.values()].sort((a, b) =>
+      b.created_at.localeCompare(a.created_at),
+    );
 
     // No review yet is a normal state, not a failure — so it is not an error,
     // and it names the call that would produce one.
-    if (!latest) {
+    if (reviews.length === 0) {
       const scope = agent ? ` by agent "${agent}"` : '';
       return text(
         `No review has been run on ${repo}#${pr}${scope} yet. ` +
@@ -54,16 +74,24 @@ export default defineTool({
       );
     }
 
-    const page = paginate(latest.findings, limit ?? DEFAULT_FINDINGS_LIMIT, offset ?? 0);
-    const note = truncationFooter(page, 'get_findings', `repo: "${repo}", pr: ${pr}, `);
-
     return toResult({
       // Echo the normalised slug, not whatever was pasted in.
       pull_request: `${normalizeRepoSlug(repo)}#${pr}`,
-      ...formatVerdict(latest),
-      total_findings: page.total,
-      findings: formatFindings(page.page, response_format ?? 'concise'),
-      ...(note ? { note } : {}),
+      reviewed_by: reviews.length,
+      reviews: reviews.map((review) => {
+        const page = paginate(review.findings, limit ?? DEFAULT_FINDINGS_LIMIT, offset ?? 0);
+        const note = truncationFooter(
+          page,
+          'get_findings',
+          `repo: "${repo}", pr: ${pr}, agent: "${review.agent_name ?? review.agent_id ?? ''}", `,
+        );
+        return {
+          ...formatVerdict(review),
+          total_findings: page.total,
+          findings: formatFindings(page.page, response_format ?? 'concise'),
+          ...(note ? { note } : {}),
+        };
+      }),
     });
   },
 });

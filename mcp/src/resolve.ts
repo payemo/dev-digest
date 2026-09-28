@@ -102,18 +102,24 @@ export async function resolveRepo(slug: string): Promise<Resolved> {
   return found.ok ? { ok: true, id: found.value } : found;
 }
 
-export async function resolveAgent(name: string): Promise<Resolved> {
-  const wanted = name.trim().toLowerCase();
+/**
+ * Accepts either a name (as `list_agents` reports it) or a raw agent id — the
+ * id is the unambiguous form, needed when two agents share a name.
+ */
+export async function resolveAgent(nameOrId: string): Promise<Resolved> {
+  const wanted = nameOrId.trim().toLowerCase();
   const found = await findOrRefetch<Agent, string>(
     'agents',
     AGENT_CACHE_TTL_MS,
     api.listAgents,
     (agents) => {
+      const byId = agents.find((a) => a.id.toLowerCase() === wanted);
+      if (byId) return byId.id;
       const matches = agents.filter((a) => a.name.toLowerCase() === wanted);
       // Two agents can share a name across versions; the live one wins.
       return (matches.find((a) => a.enabled) ?? matches[0])?.id;
     },
-    (agents) => agentNotFound(name, agents.map((a) => a.name)),
+    (agents) => agentNotFound(nameOrId, agents.map((a) => a.name)),
   );
   return found.ok ? { ok: true, id: found.value } : found;
 }

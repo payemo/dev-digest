@@ -69,28 +69,71 @@ describe('get_findings', () => {
     expect(body(result)).toContain('run_agent_on_pr');
   });
 
-  it('reports the most recent review', async () => {
+  it('reports an agent\'s most recent review when it ran more than once', async () => {
     mockFetch({
       ...resolution,
       'GET /pulls/pr-1/reviews': [
-        review({ id: 'old', created_at: '2026-01-01T00:00:00.000Z', score: 10 }),
-        review({ id: 'new', created_at: '2026-09-01T00:00:00.000Z', score: 88 }),
+        review({ id: 'old', agent_id: 'agent-1', created_at: '2026-01-01T00:00:00.000Z', score: 10 }),
+        review({ id: 'new', agent_id: 'agent-1', created_at: '2026-09-01T00:00:00.000Z', score: 88 }),
       ],
     });
-    expect(body(await getFindings.handler({ repo: REPO, pr: 42 }))).toContain('88');
+    const text = body(await getFindings.handler({ repo: REPO, pr: 42 }));
+    expect(text).toContain('88');
+    expect(text).not.toContain('"score":10');
+  });
+
+  it('reports every agent that has reviewed the PR, not just one', async () => {
+    mockFetch({
+      ...resolution,
+      'GET /pulls/pr-1/reviews': [
+        review({
+          id: 'perf',
+          agent_id: 'agent-perf',
+          agent_name: 'Perf Reviewer',
+          score: 70,
+          created_at: '2026-09-02T00:00:00.000Z',
+        }),
+        review({
+          id: 'sec',
+          agent_id: 'agent-sec',
+          agent_name: 'Security Reviewer',
+          score: 30,
+          created_at: '2026-09-01T00:00:00.000Z',
+        }),
+      ],
+    });
+    const parsed = JSON.parse(body(await getFindings.handler({ repo: REPO, pr: 42 })));
+    expect(parsed.reviewed_by).toBe(2);
+    expect(parsed.reviews.map((r: { agent: string }) => r.agent).sort()).toEqual([
+      'Perf Reviewer',
+      'Security Reviewer',
+    ]);
   });
 
   it('can report a specific agent instead', async () => {
     mockFetch({
       ...resolution,
       'GET /pulls/pr-1/reviews': [
-        review({ agent_name: 'Perf Reviewer', score: 70, created_at: '2026-09-02T00:00:00.000Z' }),
-        review({ agent_name: 'Security Reviewer', score: 30, created_at: '2026-09-01T00:00:00.000Z' }),
+        review({ agent_id: 'agent-perf', agent_name: 'Perf Reviewer', score: 70, created_at: '2026-09-02T00:00:00.000Z' }),
+        review({ agent_id: 'agent-sec', agent_name: 'Security Reviewer', score: 30, created_at: '2026-09-01T00:00:00.000Z' }),
       ],
     });
     const text = body(await getFindings.handler({ repo: REPO, pr: 42, agent: 'Security Reviewer' }));
     expect(text).toContain('30');
     expect(text).not.toContain('Perf Reviewer');
+  });
+
+  it('can report a specific agent by id, when names collide', async () => {
+    mockFetch({
+      ...resolution,
+      'GET /pulls/pr-1/reviews': [
+        review({ agent_id: 'agent-v1', agent_name: 'Security Reviewer', score: 30, created_at: '2026-09-01T00:00:00.000Z' }),
+        review({ agent_id: 'agent-v2', agent_name: 'Security Reviewer', score: 90, created_at: '2026-09-02T00:00:00.000Z' }),
+      ],
+    });
+    const text = body(await getFindings.handler({ repo: REPO, pr: 42, agent: 'agent-v1' }));
+    expect(text).toContain('30');
+    expect(text).not.toContain('90');
   });
 });
 

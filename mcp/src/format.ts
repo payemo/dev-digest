@@ -54,9 +54,16 @@ export function truncationFooter<T>(p: Page<T>, tool: string, args: string): str
  * `system_prompt` is excluded from BOTH formats — it is thousands of tokens of
  * reviewer instructions and a prompt-injection surface. There is no
  * `response_format` that returns it.
+ *
+ * `id` is included so a caller can name a specific agent unambiguously when
+ * two share a name (e.g. across versions) — `run_agent_on_pr` and
+ * `get_findings` both accept it anywhere they accept a name.
  */
-export function formatAgents(agents: Agent[]): { name: string; description: string; model: string; enabled: boolean }[] {
+export function formatAgents(
+  agents: Agent[],
+): { id: string; name: string; description: string; model: string; enabled: boolean }[] {
   return agents.map((a) => ({
+    id: a.id,
     name: a.name,
     description: truncate(a.description ?? '', 160),
     model: a.model,

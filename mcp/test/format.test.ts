@@ -26,6 +26,7 @@ describe('projections keep expensive fields out of a model context', () => {
     expect(Object.keys(formatAgents([agent()])[0]!).sort()).toEqual([
       'description',
       'enabled',
+      'id',
       'model',
       'name',
     ]);

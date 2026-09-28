@@ -30,7 +30,9 @@ export default defineTool({
     pr: prArg,
     agent: z
       .string()
-      .describe('Name of the reviewer agent to run, exactly as list_agents reports it.'),
+      .describe(
+        'Name or id of the reviewer agent to run, as list_agents reports it. Use the id when two agents share a name.',
+      ),
   },
   readOnly: false,
   handler: async ({ repo, pr, agent }) => {
