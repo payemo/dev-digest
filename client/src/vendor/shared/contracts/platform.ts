@@ -273,6 +273,14 @@ export const PrCommentInput = z.object({
 export type PrCommentInput = z.infer<typeof PrCommentInput>;
 
 // ---- Project Context ----
+/**
+ * SUPERSEDED by `contracts/project-context.ts`. These two were scaffolded for
+ * an earlier intended design — editable spec files and a chunk-indexed status
+ * readout — and the shipped feature excludes both (documents are read-only in
+ * the studio, and nothing about them is chunked). Kept because nothing is
+ * gained by deleting an unconsumed contract; use `ContextDocument` /
+ * `ContextSetStatus` for anything new.
+ */
 export const SpecFile = z.object({
   path: z.string(),
   content: z.string().nullish(),

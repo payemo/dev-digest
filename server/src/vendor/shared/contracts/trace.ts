@@ -72,6 +72,25 @@ export const RunStats = z.object({
 });
 export type RunStats = z.infer<typeof RunStats>;
 
+/**
+ * One project-context document a run read, with enough detail to tell an
+ * injected document from a skipped one.
+ *
+ * This is ADDITIVE next to `RunTrace.specs_read`, which stays a plain string
+ * array. Widening `specs_read` itself to a union would force every consumer of
+ * every ALREADY-PERSISTED trace jsonb document to branch on element type, for
+ * no gain — the requirement is only that a missing/skipped document be
+ * *distinguishable*, which a parallel nullish field satisfies. Traces written
+ * before this field exists yield `undefined`, and the trace drawer falls back
+ * to `specs_read`.
+ */
+export const SpecRead = z.object({
+  path: z.string(),
+  origin: z.enum(['repo', 'user']),
+  status: z.enum(['injected', 'missing']),
+});
+export type SpecRead = z.infer<typeof SpecRead>;
+
 /** The single-document trace stored in `run_traces.trace`. */
 export const RunTrace = z.object({
   config: z.object({
@@ -88,6 +107,8 @@ export const RunTrace = z.object({
   raw_output: z.string(),
   memory_pulled: z.array(MemoryPulled),
   specs_read: z.array(z.string()),
+  /** Per-document detail for `specs_read`; absent on pre-feature traces. */
+  specs_read_detail: z.array(SpecRead).nullish(),
   log: z.array(RunLogLine),
 });
 export type RunTrace = z.infer<typeof RunTrace>;

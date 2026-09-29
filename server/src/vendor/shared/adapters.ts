@@ -227,6 +227,46 @@ export interface GitClient {
   clonePathFor(repo: RepoRef): string;
 }
 
+// ---------- ProjectDocSource (project-context document scan) ----------
+
+/** One Markdown document found by a scan, with its repo-relative posix path. */
+export interface ProjectDocFile {
+  path: string;
+  content: string;
+  sizeBytes: number;
+}
+
+/**
+ * Result of one scan of a repository's document root.
+ *
+ * `available: false` is NOT an error — it means there was nothing to scan (no
+ * clone on disk, unreadable root), and the caller must keep the snapshots it
+ * already stored rather than reconciling them away. The two drop counters are
+ * reported rather than thrown so a repository past its bounds still yields a
+ * usable, explicitly-bounded set.
+ */
+export interface ProjectDocScan {
+  files: ProjectDocFile[];
+  /** Clone HEAD the scan saw; null when the clone was unavailable. */
+  head: string | null;
+  /** false = no clone → caller keeps the stored snapshot untouched. */
+  available: boolean;
+  /** How many documents the count bound dropped. */
+  bounded: number;
+  /** How many documents the per-document size bound dropped. */
+  skippedTooLarge: number;
+}
+
+/**
+ * Reads a repository's project-context documents. The only place filesystem
+ * access for this feature may live; the module itself never touches `node:fs`,
+ * which is also what keeps the scan's failure modes (no clone, over bounds)
+ * testable without a temp directory.
+ */
+export interface ProjectDocSource {
+  scan(repo: RepoRef): Promise<ProjectDocScan>;
+}
+
 // ---------- CodeIndex (ripgrep + tree-sitter) ----------
 export interface CodeMatch {
   path: string;

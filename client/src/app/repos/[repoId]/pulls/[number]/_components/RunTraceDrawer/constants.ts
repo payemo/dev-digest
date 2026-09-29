@@ -10,9 +10,16 @@ export const LOG_HEIGHT = 420;
 export const TABS = ["trace", "log"] as const;
 export type TraceTab = (typeof TABS)[number];
 
-/** Prompt-assembly block accent colours (by leg). */
+/**
+ * Prompt-assembly block accent colours, in the order the ENGINE assembles
+ * them: system → pr_description → intent → skills → memory → repo_map →
+ * specs (`## Project context`) → callers → user. The drawer renders them in
+ * this order so the list cannot misstate where a slot actually lands.
+ */
 export const PROMPT_COLORS = {
   system: "var(--text-muted)",
+  prDescription: "var(--text-secondary)",
+  intent: "var(--warn)",
   skills: "var(--accent)",
   memory: "var(--warn)",
   repoMap: "var(--accent)",

@@ -1,5 +1,5 @@
 import type { Container } from '../../platform/container.js';
-import type { PrIntentRecord, Provider, Review, RunTrace, UnifiedDiff } from '@devdigest/shared';
+import type { PrIntentRecord, Provider, Review, RunTrace, SpecRead, UnifiedDiff } from '@devdigest/shared';
 import { reviewPullRequest, countBlockers } from '@devdigest/reviewer-core';
 import { RunLogger } from '../../platform/run-logger.js';
 import type { AgentRow, RepoRow } from '../../db/rows.js';
@@ -222,6 +222,19 @@ export class ReviewRunExecutor {
           );
       }
 
+      // Project context — the documents the user attached to this agent (and
+      // the ones its enabled skills contribute) for THIS repository. Reads
+      // `skillCtx?.skillIds`, the set already selected for the skills block, so
+      // the injected skills and the inherited documents cannot disagree about
+      // which skills are on.
+      const projectCtx = await this.buildProjectContext(
+        workspaceId,
+        pull.repoId,
+        agent.id,
+        skillCtx?.skillIds ?? [],
+        runLog,
+      );
+
       const task = taskLine(pull) + rankNote;
 
       // ---- Engine: assemble → single-pass → grounding -----------------------
@@ -241,6 +254,11 @@ export class ReviewRunExecutor {
         ...(callersDigest ? { callers: callersDigest } : {}),
         // T3 — repo skeleton, same omit-when-empty contract.
         ...(repoMap ? { repoMap } : {}),
+        // Attached project-context documents, merged and resolved from their
+        // stored snapshots. Same omit-when-empty contract as every other
+        // enrichment, so an agent with nothing attached gets a byte-identical
+        // prompt to before.
+        ...(projectCtx && projectCtx.texts.length > 0 ? { specs: projectCtx.texts } : {}),
         // Linked skill bodies, enabled only, in the user's configured order.
         // assemblePrompt omits the `## Skills / rules` section when absent, so
         // an agent with no skills gets a byte-identical prompt to before.
@@ -338,7 +356,8 @@ export class ReviewRunExecutor {
         })),
         raw_output: outcome.raw,
         memory_pulled: [],
-        specs_read: [],
+        specs_read: projectCtx?.read.map((r) => r.path) ?? [],
+        specs_read_detail: projectCtx?.read ?? [],
         // Persisted log = the run's FULL event buffer (incl. shared pre-work:
         // diff load + intent), not just events recorded inside this method.
         log: runLog.logFor(runId),
@@ -417,6 +436,51 @@ export class ReviewRunExecutor {
         `${selected.names.join(', ')}${skippedNote}`,
     );
     return selected;
+  }
+
+  /**
+   * Resolve the project-context documents this run injects.
+   *
+   * Best-effort, and the try/catch is INSIDE this method rather than wrapped
+   * around a `runLog.step` call: `step` logs an `error` and rethrows, and on
+   * the review pre-work path that propagation reaches `failAll` and fails every
+   * queued run. A broken document lookup must cost a prompt section, never a
+   * review — let alone somebody else's review.
+   *
+   * The log line reports what went in and what was skipped, the way the skills
+   * line does, so "I detached it and it stopped reaching the model" is
+   * verifiable from the Live Log rather than inferred.
+   */
+  private async buildProjectContext(
+    workspaceId: string,
+    repoId: string,
+    agentId: string,
+    enabledSkillIds: string[],
+    runLog: RunLogger,
+  ): Promise<{ texts: string[]; read: SpecRead[] } | undefined> {
+    let resolved: { texts: string[]; read: SpecRead[] };
+    try {
+      resolved = await this.container.projectContext.effectiveSetForRun(
+        workspaceId,
+        repoId,
+        agentId,
+        enabledSkillIds,
+      );
+    } catch (err) {
+      runLog.info(`project context: lookup failed — ${(err as Error).message}`);
+      return undefined;
+    }
+    if (resolved.read.length === 0) {
+      runLog.info('project context: no documents attached');
+      return resolved;
+    }
+    const skipped = resolved.read.filter((r) => r.status === 'missing').map((r) => r.path);
+    const skippedNote = skipped.length > 0 ? ` (skipped, no longer available: ${skipped.join(', ')})` : '';
+    runLog.info(
+      `project context: ${resolved.texts.length} of ${resolved.read.length} document(s) injected — ` +
+        `${resolved.read.filter((r) => r.status === 'injected').map((r) => r.path).join(', ')}${skippedNote}`,
+    );
+    return resolved;
   }
 
   /**
@@ -532,7 +596,11 @@ export class ReviewRunExecutor {
       tool_calls: [],
       raw_output: '',
       memory_pulled: [],
+      // A failed/cancelled run assembled nothing, so both stay empty here. The
+      // `buildProjectContext` log line is what distinguishes "nothing was
+      // attached" from "it never got that far" — this trace cannot.
       specs_read: [],
+      specs_read_detail: [],
       log: this.container.runBus.buffer(runId).map((e) => ({ t: e.t, kind: e.kind, msg: e.msg })),
     };
   }

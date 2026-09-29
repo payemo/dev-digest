@@ -50,3 +50,24 @@ export const conventionKeys = {
   forRepo: (repoId: string | null | undefined) => ["conventions", repoId] as const,
   draft: (repoId: string | null | undefined) => ["conventions-skill-draft", repoId] as const,
 };
+
+/**
+ * Query-key factory for Project Context (src/lib/hooks/project-context.ts).
+ *
+ * Documents and status are keyed by repo. An attachment set is keyed by
+ * (kind, owner, repo) because agents and skills stay workspace-global while
+ * what they attach is per-repository — `attachmentsRoot()` is the prefix that
+ * invalidates every set at once, which is what deleting a document needs.
+ */
+export const contextKeys = {
+  documents: (repoId: string | null | undefined) => ["context-documents", repoId] as const,
+  document: (repoId: string | null | undefined, docId: string | null | undefined) =>
+    ["context-document", repoId, docId] as const,
+  status: (repoId: string | null | undefined) => ["context-status", repoId] as const,
+  attachmentsRoot: () => ["context-attachments"] as const,
+  attachments: (
+    kind: "agent" | "skill",
+    ownerId: string | null | undefined,
+    repoId: string | null | undefined,
+  ) => ["context-attachments", kind, ownerId, repoId] as const,
+};

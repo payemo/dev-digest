@@ -14,7 +14,17 @@ _Nothing yet._
 
 ## Codebase Patterns
 
-_Nothing yet._
+### 2026-09-29 — `assembly.specs` is the wrapped blocks WITHOUT the `## Project context` heading — the heading exists only inside `assembly.user`
+
+`assemblePrompt` builds `specsBlock` as the `wrapUntrusted`-ed elements joined
+by a blank line, pushes `` `## Project context\n${specsBlock}` `` into
+`userSections`, and then records the bare `specsBlock` as `assembly.specs`. Same
+shape for `skills`, `memory` and `repo_map`. So a consumer asserting that
+`assembly.specs` contains the section heading, or a UI implying the recorded
+slot IS the rendered section, is wrong — the heading is trusted framing the
+engine owns and it lives only in the joined `user` message.
+Evidence: `reviewer-core/src/prompt.ts` (`specsBlock`, `userSections`, the
+`assembly` literal).
 
 ## Tool & Library Notes
 

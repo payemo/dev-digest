@@ -23,6 +23,11 @@ export const NAV: NavGroup[] = [
     section: "WORKSPACE",
     items: [
       { key: "pulls", label: "Pull Requests", icon: "GitPullRequest", href: "/repos/:repoId/pulls", gKey: "p" },
+      // No gKey: every free letter would be an invented shortcut, and adding
+      // one also means a SHORTCUTS row. The label is duplicated in
+      // messages/en/shell.json under `nav.context` — the sidebar prints this
+      // literal while the command palette re-translates that key.
+      { key: "context", label: "Project Context", icon: "FileText", href: "/repos/:repoId/context" },
     ],
   },
   {

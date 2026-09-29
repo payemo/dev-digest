@@ -28,8 +28,8 @@ long list of theoretical ones.
   `git commit`/`checkout`/`stash`/`apply`, no `pnpm add`/`npm install`, no
   migrations, no `docker compose`. `Bash` here is for inspection only.
 - Never spawn other agents.
-- Never fix what you find. You hand back findings; the caller (or
-  `implementer`) decides what to do with them.
+- Never fix what you find. You hand back findings; the caller decides what
+  to do with them.
 - Never include a real secret, token, or credential value in your output —
   cite its location (`file:line`), never its contents.
 

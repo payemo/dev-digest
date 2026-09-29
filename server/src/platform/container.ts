@@ -6,6 +6,7 @@ import type {
   CodeIndex,
   Embedder,
   LLMProvider,
+  ProjectDocSource,
 } from '@devdigest/shared';
 import type { AppConfig } from './config.js';
 import type { Db } from '../db/client.js';
@@ -32,6 +33,8 @@ import { SkillsService } from '../modules/skills/service.js';
 import { IntentService } from '../modules/intent/service.js';
 import { type DepGraph, DepCruiseGraph } from '../adapters/depgraph/index.js';
 import { type Tokenizer, TiktokenTokenizer } from '../adapters/tokenizer/index.js';
+import { CloneDocSource } from '../adapters/docsource/clone.js';
+import { ProjectContextService } from '../modules/project-context/service.js';
 
 /**
  * DI container. One per app instance. Holds config, db, the JobRunner,
@@ -54,6 +57,8 @@ export interface ContainerOverrides {
   /** repo-intel T3 adapters — only the indexer pipeline reads these. */
   depgraph?: DepGraph;
   tokenizer?: Tokenizer;
+  /** project-context document scan — tests inject a fixture-backed MockDocSource. */
+  docSource?: ProjectDocSource;
 }
 
 export class Container {
@@ -82,6 +87,8 @@ export class Container {
   private _priceBook?: PriceBook;
   private _skills?: SkillsService;
   private _intent?: IntentService;
+  private _docSource?: ProjectDocSource;
+  private _projectContext?: ProjectContextService;
 
   constructor(config: AppConfig, db: Db, private overrides: ContainerOverrides = {}) {
     this.config = config;
@@ -149,6 +156,28 @@ export class Container {
    */
   get intent(): IntentService {
     return (this._intent ??= new IntentService(this));
+  }
+
+  /**
+   * Reads a repository's project-context documents off its clone. Lazy like
+   * every other adapter, so a repo that was never cloned costs nothing until
+   * someone actually syncs its documents.
+   */
+  get docSource(): ProjectDocSource {
+    if (this.overrides.docSource) return this.overrides.docSource;
+    this._docSource ??= new CloneDocSource(this.git);
+    return this._docSource;
+  }
+
+  /**
+   * Project Context, promoted here for the same reason `skills` and `intent`
+   * are: the reviews module's `run-executor.ts` needs another module's
+   * *business logic* (merge the effective set, then read the stored snapshots),
+   * not its repository. A Container getter is how a module reaches that — never
+   * `new ProjectContextService(container)` from inside another module.
+   */
+  get projectContext(): ProjectContextService {
+    return (this._projectContext ??= new ProjectContextService(this));
   }
 
   /** Import-graph builder (dependency-cruiser). T3 indexer pipeline only. */
