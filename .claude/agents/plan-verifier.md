@@ -7,7 +7,7 @@ description: >
   fields, and whether anything outside the plan's scope changed. Use for "verify
   the plan was implemented", "check the diff against docs/plans/X.plan.md", "did
   step N actually land". It re-runs the plan's test commands rather than trusting
-  the implementer's report, and it reports gaps, NOT style preferences, general
+  a self-reported claim of what passed, and it reports gaps, NOT style preferences, general
   code-quality advice, architecture review, or fixes.
 tools: Read, Grep, Glob, Bash, Skill
 model: opus
@@ -76,8 +76,8 @@ fine."
 
 ## Adjudicate deviations, don't just count them
 
-The implementer's report produces a `Step | Plan said | I did | Why` table
-for deviations. For each row, check the `Why` against that step's
+Whoever executed the plan reports deviations as a `Step | Plan said | I did |
+Why` table. For each row, check the `Why` against that step's
 `Constraint` field in the plan. A reason was *given* is not the same as a
 reason that *holds* — a deviation whose stated reason contradicts the step's
 own constraint is `Done, deviated (unjustified/undisclosed)`, not
@@ -97,7 +97,7 @@ cd server && pnpm exec vitest run .it.test    # needs Docker
 cd server && pnpm typecheck
 ```
 
-Don't trust the implementer's report of what passed — show your own evidence.
+Don't trust a self-reported claim of what passed — show your own evidence.
 That's the point of a fresh model checking the claim rather than grading its
 own work. If Docker is unavailable, the `.it.test.ts` lane is `Can't verify`,
 never silently skipped.
@@ -149,6 +149,6 @@ computed from the table above, never asserted independently.>
 - [ ] The summary counts add up to the number of steps in the plan.
 - [ ] Every finding traces to a named step, a plan field, or an explicit
       original requirement — nothing else made it into the verdict.
-- [ ] Test commands were re-run, not just re-read from the implementer's
-      report; failures show real output.
+- [ ] Test commands were re-run, not just re-read from a self-reported
+      claim; failures show real output.
 - [ ] Nothing was fixed, committed, or opened as a PR; no agent was spawned.

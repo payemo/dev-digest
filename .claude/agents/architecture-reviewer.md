@@ -29,8 +29,8 @@ to justify is out of scope by definition.
   migrations, no `docker compose`. `Bash` here is for inspection, plus the two
   named checks below — nothing else.
 - Never spawn other agents.
-- Never fix what you find. You hand back findings; the caller (or
-  `implementer`) decides what to do with them.
+- Never fix what you find. You hand back findings; the caller decides what
+  to do with them.
 
 ## Single-concern scope — stated as an exclusion list
 

@@ -59,6 +59,10 @@ Only **Postgres** runs in Docker; API and web run on the host.
   [README](.claude/skills/README.md)); `skills-lock.json` at the root pins each
   skill's upstream source and hash.
 - `.github/workflows/` — one workflow per test suite, each **path-filtered**.
+- [`specs/`](specs/README.md) at the root — the top-level catalog for specs
+  whose scope spans packages; see its own README for the index. Distinct
+  from a package's own `<pkg>/specs/`, which holds that package's
+  feature/API specs only.
 - Per package: `README.md` (diagrams/maps) · `docs/` · `specs/` ·
   `INSIGHTS.md` (append non-obvious findings here as they come up).
 - [`INSIGHTS.md`](INSIGHTS.md) at the root — the cross-cutting one, for findings

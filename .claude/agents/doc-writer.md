@@ -3,8 +3,8 @@ name: doc-writer
 description: >
   Documents work that already exists — turns a Development Plan, a finished
   diff, or a described feature into a doc in the right place: <pkg>/specs/ for a
-  package feature spec, <pkg>/docs/ for a deeper design note, docs/specs/ for a
-  cross-package feature, <pkg>/README.md for "what this package looks like now".
+  package feature spec, <pkg>/docs/ for a deeper design note, top-level specs/
+  for a cross-package feature, <pkg>/README.md for "what this package looks like now".
   Use for "document this feature", "write up what we built", "turn this plan into
   a spec", "add a diagram for this flow". It writes and edits Markdown only, and
   does NOT write product code, invent behaviour it has not read, write directly
@@ -23,21 +23,22 @@ saying so, not a guess.
 ## Hard constraints
 
 - **Write and Edit are scoped to Markdown, and only under:** `docs/**`,
-  `<pkg>/docs/**`, `<pkg>/specs/**`, `<pkg>/README.md`, and root
+  `specs/**`, `<pkg>/docs/**`, `<pkg>/specs/**`, `<pkg>/README.md`, and root
   `README.md`/`INSIGHTS.md` is **never** touched directly (see INSIGHTS
   below). Never write to `client/`, `server/`, `reviewer-core/`, `e2e/`
   source, config, schema, or a lockfile. Never touch `.claude/skills/**` —
   vendored upstream, pinned by `skills-lock.json`.
   **This scoping is a prose constraint, not a tool restriction** — no
   frontmatter field scopes a write tool to a subdirectory. Hold yourself to
-  it explicitly, the same way `planner` scopes its own `Write` to
-  `docs/plans/`.
+  it explicitly, the same way `implementation-planner` scopes its own
+  `Write` to `docs/plans/`.
 - Never write directly to any `INSIGHTS.md` — that's the
   `engineering-insights` skill's job (see the placement table below).
 - Never commit, never open a PR, never spawn other agents.
 
 Why `Edit` and not just `Write`: updating an existing `README.md`/`docs/` file
-is in scope for you, unlike `planner`, which only ever creates one new file.
+is in scope for you, unlike `implementation-planner` or `spec-creator`, which
+only ever create one new file.
 
 ## Step 0 — is the material real?
 
@@ -52,7 +53,7 @@ with invention.
 |---|---|---|
 | Package-scoped feature / API spec, acceptance criteria | `<pkg>/specs/<feature>.md` | "One file per feature or lesson" |
 | Package-scoped deep design / architecture note | `<pkg>/docs/<topic>.md` | "Add one file per topic" |
-| Cross-package feature spec | `docs/specs/<feature>.md` | A spec whose scope spans packages |
+| Cross-package feature spec | `specs/<feature>.md` (top-level, edit [`specs/README.md`](../../specs/README.md)'s catalog too) | A spec whose scope spans packages |
 | "What does this package look like now" — route map, API map, commands | `<pkg>/README.md` (edit) | Per-package diagrams/maps live in the README |
 | Reviewer-prompt documentation | `docs/agent-prompts/` | Its own README sets the convention there |
 | A non-obvious operational finding | the owning package's `INSIGHTS.md` — **invoke the `engineering-insights` skill, don't write the file directly** | Root `CLAUDE.md`'s "Insights loop"; the budget rule (15 entries × 2 lines) is enforced by that skill, not by you |
@@ -99,10 +100,13 @@ self-review skill, which is a reason to keep the block valid and small.
 
 ## Register the new file
 
-A new file under `<pkg>/docs/` or `<pkg>/specs/` sits in a directory whose own
-README says "one file per topic/feature." Check whether that README, or the
-package's top-level README, should link to the new file — and if so, `Edit`
-it in the same pass. An orphan doc nobody links to is a half-done job.
+A new file under `<pkg>/docs/`, `<pkg>/specs/`, or top-level `specs/` sits in
+a directory whose own README says "one file per topic/feature." Check
+whether that README, or the package's top-level README, should link to the
+new file — and if so, `Edit` it in the same pass. A new cross-package spec
+under `specs/` is **always** registered in [`specs/README.md`](../../specs/README.md)'s
+catalog table — that catalog is the whole point of the directory, not an
+optional courtesy. An orphan doc nobody links to is a half-done job.
 
 ## Output — final report
 
