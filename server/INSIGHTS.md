@@ -154,6 +154,33 @@ comment when reasoning about how many callers a given symbol will show.
 Evidence: `server/src/modules/repo-intel/constants.ts:29-30` (doc comment) vs
 `server/src/modules/repo-intel/service.ts:386` (`callers.slice(0, 20)`).
 
+### 2026-09-29 — Two rows may share a path only because the unique index includes `origin` — the coexistence is structural, not conditional
+
+`context_documents`' unique index is `(repo_id, origin, path)`, so a
+repo-discovered document and a studio-authored one at `.devdigest/specs/x.md`
+are two independent rows, while two user-authored documents at one path still
+conflict. Because `origin` is in the upsert's conflict target, a re-scan
+physically cannot overwrite the user's copy — no service-level "is this a user
+document?" check is load-bearing. Dropping `origin` from that index would turn
+every re-sync into silent data loss with no code change to review.
+Evidence: `server/src/db/schema/project-context.ts`
+(`context_documents_repo_origin_path_uq`);
+`server/src/modules/project-context/repository.ts` (`upsertRepoDocument`).
+
+### 2026-09-29 — A `RunTrace` field cannot be retyped, only added to — the whole trace is one persisted jsonb document
+
+`run_traces.trace` holds an already-written document per historical run, and
+`RunTrace` parses it on read. Widening `specs_read: z.array(z.string())` to a
+union of string-or-object would make every stored trace's elements the wrong
+shape for the new parser, and force every consumer to branch on element type.
+The working shape is an additive sibling: `specs_read_detail:
+z.array(SpecRead).nullish()`, which is `undefined` on old traces, with the
+reading component falling back to the old field.
+Evidence: `server/src/vendor/shared/contracts/trace.ts` (`SpecRead`,
+`specs_read_detail`);
+`client/src/app/repos/[repoId]/pulls/[number]/_components/RunTraceDrawer/_components/TraceBody/TraceBody.tsx`
+(`DocumentsRead`'s fallback).
+
 ## Tool & Library Notes
 
 ### 2026-09-21 — `drizzle-kit generate` prompts interactively when one pass both drops and adds columns on the same table, and the prompt can't be answered non-interactively

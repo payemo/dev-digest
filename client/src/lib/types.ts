@@ -27,8 +27,23 @@ export type {
   PrCommit,
   PrReviewComment,
   PrStatus,
+  // Superseded by the ContextDocument family below; kept as a re-export so no
+  // consumer of this barrel breaks.
   SpecFile,
   IndexStatus,
+  ContextDocument,
+  ContextDocumentContent,
+  ContextDocumentCategory,
+  ContextDocumentOrigin,
+  ContextDocumentAvailability,
+  ContextDocumentIntake,
+  ContextSetStatus,
+  ContextSetHealth,
+  ContextAttachment,
+  ContextAttachmentSet,
+  ContextAttachmentSetUpdate,
+  ContextOwnerKind,
+  ContextProvenance,
 } from "@devdigest/shared";
 
 export type { Review, Finding, Severity, Verdict } from "@devdigest/shared";

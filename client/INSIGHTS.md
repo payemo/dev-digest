@@ -107,6 +107,19 @@ query param), not assume the component instance persists.
 Evidence: `client/src/app/repos/[repoId]/pulls/[number]/_components/DiffTab/DiffTab.tsx`;
 `client/src/app/repos/[repoId]/pulls/[number]/_components/SmartDiffGroups/SmartDiffGroups.tsx`.
 
+### 2026-09-29 — The trace drawer's prompt-slot list is a hand-written sequence, so it silently drifts from the engine's real assembly order
+
+`TraceBody.tsx` renders one `PromptBlock` per slot in the order they are typed
+in the JSX — there is nothing deriving that order from
+`reviewer-core/src/prompt.ts`'s `userSections`. It had drifted: `pr_description`
+and `intent` are both contracted on `PromptAssembly` and both assembled BEFORE
+`## Project context`, but neither was rendered at all, so the list misstated
+where every later slot lands. When adding or reordering a prompt slot, re-read
+`assemblePrompt`'s `userSections` and match it — the drawer's order is a claim
+about the prompt, not decoration.
+Evidence: `client/src/app/repos/[repoId]/pulls/[number]/_components/RunTraceDrawer/_components/TraceBody/TraceBody.tsx`
+vs `reviewer-core/src/prompt.ts` (`userSections`).
+
 ## Tool & Library Notes
 
 ### 2026-09-25 — `@testing-library/user-event` isn't an installed dependency here, despite the vendored `react-testing-library` skill mandating it over `fireEvent`

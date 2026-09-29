@@ -8,8 +8,16 @@
  * lazy-initialised (loading the BPE ranks is the heavy part) and any failure
  * falls back to the `ceil(chars / 4)` heuristic — the renderer must never throw.
  *
- * Scope: in-process, ONLY under modules/repo-intel. Swappable in tests via a
- * mock counter (ContainerOverrides.tokenizer).
+ * Scope: in-process; used by `modules/repo-intel` (the repo-map budget search)
+ * and `modules/project-context` (per-document stored token counts). That second
+ * consumer is a deliberate widening, not scope creep: project context requires
+ * ONE counting scheme shared across every agent and provider, so adding a
+ * second counter would violate the very requirement it was meant to serve. No
+ * behaviour changes for either caller — the lazy encoder and the non-throwing
+ * `ceil(chars / 4)` fallback below are exactly the "degrade to a rough estimate
+ * rather than fail" that requirement asks for.
+ *
+ * Swappable in tests via a mock counter (ContainerOverrides.tokenizer).
  */
 import { getEncoding, type Tiktoken } from 'js-tiktoken';
 

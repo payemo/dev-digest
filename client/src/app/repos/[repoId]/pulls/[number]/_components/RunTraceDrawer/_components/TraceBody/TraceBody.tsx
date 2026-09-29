@@ -16,6 +16,48 @@ import { PromptBlock } from "../PromptBlock";
 import { FindingsSection } from "../FindingsSection";
 import { Row, Stat } from "../atoms";
 
+/**
+ * The documents-read row.
+ *
+ * Prefers `specs_read_detail`, which distinguishes an injected document from
+ * one that was attached and skipped. Traces persisted before that field
+ * existed have only `specs_read`, so those fall back to the plain path list
+ * rather than rendering as "no documents".
+ */
+function DocumentsRead({ trace }: { trace: RunTrace }) {
+  const t = useTranslations("runs");
+  const detail = trace.specs_read_detail;
+
+  if (detail && detail.length > 0) {
+    return (
+      <>
+        {detail.map((d, i) => (
+          <span key={i} className="mono" style={d.status === "missing" ? s.specMissing : s.spec}>
+            {d.path}
+            <span style={s.specOrigin}>
+              {d.origin}
+              {d.status === "missing" ? ` · ${t("trace.config.specMissing")}` : ""}
+            </span>
+          </span>
+        ))}
+      </>
+    );
+  }
+
+  if (trace.specs_read.length === 0) {
+    return <span style={s.specsNone}>{t("trace.config.none")}</span>;
+  }
+  return (
+    <>
+      {trace.specs_read.map((sp, i) => (
+        <span key={i} className="mono" style={s.spec}>
+          {sp}
+        </span>
+      ))}
+    </>
+  );
+}
+
 export function TraceBody({ trace, findings }: { trace: RunTrace; findings: FindingRecord[] }) {
   const t = useTranslations("runs");
   const stats = trace.stats;
@@ -38,15 +80,7 @@ export function TraceBody({ trace, findings }: { trace: RunTrace; findings: Find
           </Row>
           <Row label={t("trace.config.specsRead")}>
             <div style={s.specsWrap}>
-              {trace.specs_read.length === 0 ? (
-                <span style={s.specsNone}>{t("trace.config.none")}</span>
-              ) : (
-                trace.specs_read.map((sp, i) => (
-                  <span key={i} className="mono" style={s.spec}>
-                    {sp}
-                  </span>
-                ))
-              )}
+              <DocumentsRead trace={trace} />
             </div>
           </Row>
         </div>
@@ -72,7 +106,26 @@ export function TraceBody({ trace, findings }: { trace: RunTrace; findings: Find
       <FindingsSection findings={findings} />
 
       <TraceSection icon="FileText" title={t("trace.promptAssembly")} defaultOpen={false}>
+        {/* Slot order below is the engine's own assembly order: system →
+            PR description → derived intent → skills → memory → repo skeleton →
+            project context → callers → user. `pr_description` and `intent` both
+            sit BEFORE project context, so a list that omitted them misstated
+            where project context lands. */}
         <PromptBlock label={t("trace.prompt.system")} text={trace.prompt_assembly.system} color={PROMPT_COLORS.system} />
+        {trace.prompt_assembly.pr_description != null && (
+          <PromptBlock
+            label={t("trace.prompt.prDescription")}
+            text={trace.prompt_assembly.pr_description}
+            color={PROMPT_COLORS.prDescription}
+          />
+        )}
+        {trace.prompt_assembly.intent != null && (
+          <PromptBlock
+            label={t("trace.prompt.intent")}
+            text={trace.prompt_assembly.intent}
+            color={PROMPT_COLORS.intent}
+          />
+        )}
         {trace.prompt_assembly.skills != null && (
           <PromptBlock label={t("trace.prompt.skills")} text={trace.prompt_assembly.skills} color={PROMPT_COLORS.skills} />
         )}

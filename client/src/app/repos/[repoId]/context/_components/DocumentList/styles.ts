@@ -1,0 +1,48 @@
+import type { CSSProperties } from "react";
+
+export const s = {
+  wrap: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 14,
+    border: "1px solid var(--border)",
+    borderRadius: 8,
+    background: "var(--bg-elevated)",
+    padding: 12,
+  } satisfies CSSProperties,
+  group: { display: "flex", flexDirection: "column", gap: 4 } satisfies CSSProperties,
+  row: {
+    display: "grid",
+    gridTemplateColumns: "1fr auto",
+    gap: 4,
+    textAlign: "left",
+    padding: "7px 9px",
+    borderRadius: 6,
+    border: "1px solid transparent",
+    background: "transparent",
+    cursor: "pointer",
+    width: "100%",
+  } satisfies CSSProperties,
+  rowSelected: {
+    display: "grid",
+    gridTemplateColumns: "1fr auto",
+    gap: 4,
+    textAlign: "left",
+    padding: "7px 9px",
+    borderRadius: 6,
+    border: "1px solid var(--border-strong)",
+    background: "var(--bg-hover)",
+    cursor: "pointer",
+    width: "100%",
+  } satisfies CSSProperties,
+  name: { fontSize: 13, fontWeight: 600, color: "var(--text-primary)" } satisfies CSSProperties,
+  folder: { fontSize: 11, color: "var(--text-muted)" } satisfies CSSProperties,
+  badges: {
+    display: "flex",
+    gap: 4,
+    justifyContent: "flex-end",
+    gridRow: 1,
+    gridColumn: 2,
+  } satisfies CSSProperties,
+  meta: { fontSize: 11, color: "var(--text-muted)", gridColumn: "1 / -1" } satisfies CSSProperties,
+} as const;

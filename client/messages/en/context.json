@@ -1,24 +1,110 @@
 {
   "title": "Project Context",
-  "chunks": "{count} chunks",
-  "reindex": "Re-index",
-  "indexing": "Indexing…",
-  "resync": "Resync",
-  "resyncing": "Resyncing…",
-  "indexStatus": "Index status: {status}",
-  "loadError": "Couldn’t load specs",
+  "subtitle": "Markdown documents this repository carries, plus anything you added here. Attach them to an agent or a skill to put their text in front of the model.",
+  "repoFallback": "this repository",
+  "crumbWorkspace": "Workspace",
+  "loadError": "Couldn’t load this repository’s documents",
+  "refresh": "Refresh",
+  "refreshing": "Refreshing…",
+  "create": "Add document",
   "kb": "{kb}kb",
   "empty": {
-    "title": "No spec files yet",
-    "body": "Drop your PRDs, tech specs, and acceptance criteria under .devdigest/specs/. Every agent and the PR brief read them as grounding context."
+    "title": "No documents yet",
+    "body": "Put Markdown under .devdigest/specs/, .devdigest/docs/ or .devdigest/insights/ in the repository and press Refresh, or add a document here. Markdown sitting directly under .devdigest/ isn’t picked up — the subfolder is what classifies it."
   },
-  "mode": {
-    "preview": "preview",
-    "edit": "edit"
+  "category": {
+    "specs": "Specs",
+    "docs": "Docs",
+    "insights": "Insights"
   },
-  "editor": {
-    "loadError": "Couldn’t load spec",
-    "save": "Save",
-    "saving": "Saving…"
+  "origin": {
+    "repo": "in repo",
+    "user": "added here"
+  },
+  "doc": {
+    "missing": "missing",
+    "missingHint": "This file is no longer in the repository. It stays attached and is skipped on a run until it comes back.",
+    "usedByAgents": "{count, plural, =0 {used by no agents} one {used by # agent} other {used by # agents}}",
+    "folderRoot": "(top level)"
+  },
+  "tokens": {
+    "approx": "≈ {count} tokens",
+    "total": "≈ {count} tokens attached",
+    "approximateNote": "Token figures are approximate and come from one shared counting scheme, not the review model’s own tokenizer.",
+    "overBudget": "Above the {threshold}-token guide. Nothing is blocked — this is a heads-up that the prompt is getting large."
+  },
+  "preview": {
+    "title": "Preview",
+    "empty": "Select a document to read it.",
+    "loadError": "Couldn’t load this document",
+    "readOnly": "Read-only. Edit the file in the repository and press Refresh."
+  },
+  "footer": {
+    "documents": "{count, plural, one {# document} other {# documents}}",
+    "lastSynced": "last synced {ago}",
+    "neverSynced": "never synced",
+    "health": {
+      "fresh": "up to date",
+      "stale": "may be out of date",
+      "failed": "last refresh failed",
+      "bounded": "partial — too many documents"
+    },
+    "reason": {
+      "noClone": "This repository isn’t cloned locally yet, so nothing could be scanned. Stored documents were left untouched.",
+      "bounded": "Only the first {kept} documents (by path) are held; {dropped} more were left out.",
+      "other": "{reason}"
+    }
+  },
+  "createModal": {
+    "title": "Add a document",
+    "subtitle": "Write it here, or upload a Markdown file. It’s stored in DevDigest, not written back to the repository.",
+    "categoryLabel": "Category",
+    "folderLabel": "Folder",
+    "folderHint": "Optional, inside the category. Naming a folder that doesn’t exist yet creates it.",
+    "folderPlaceholder": "e.g. api",
+    "nameLabel": "File name",
+    "namePlaceholder": "e.g. public-api.md",
+    "bodyLabel": "Content",
+    "bodyPlaceholder": "# Public API — PRD",
+    "upload": "Upload a .md file",
+    "uploading": "Reading file…",
+    "submit": "Add document",
+    "submitting": "Adding…",
+    "cancel": "Cancel",
+    "pathPreview": "Will be stored at {path}",
+    "reject": {
+      "extension": "Only Markdown files are supported (.md, .markdown).",
+      "empty": "A document can’t be empty.",
+      "tooLarge": "That document is {size} bytes; the limit is {max}.",
+      "readFailed": "Couldn’t read that file."
+    }
+  },
+  "delete": {
+    "action": "Delete",
+    "confirm": "Delete {name}? It was added here, so nothing in the repository changes.",
+    "repoOwned": "This document was discovered in the repository. Remove the file there and press Refresh."
+  },
+  "attach": {
+    "title": "Project context",
+    "skillTitle": "Project context to use",
+    "count": "{attached} of {total} attached",
+    "countSkill": "{attached, plural, one {# attached} other {# attached}}",
+    "orderHint": "Order matters — a document earlier in this list appears earlier in the assembled ## Project context block. Toggle to attach.",
+    "skillHint": "Any agent using this skill inherits these documents.",
+    "inherited": "via skill",
+    "filterPlaceholder": "Filter documents…",
+    "noMatches": "No documents match “{query}”.",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "loadError": "Couldn’t load the attached documents",
+    "trustLine": "Injected as an untrusted block (## Project context) into every run of this agent in this repository.",
+    "serializesAs": "SERIALIZES AS",
+    "blockName": "## Project context",
+    "serializesEmpty": "(nothing attached yet)",
+    "serializesNote": "These paths join the agent’s own ## Project context block — a skill never gets a section of its own, and a document’s text is never part of the skill body.",
+    "noRepo": {
+      "title": "Pick a repository first",
+      "body": "Documents belong to a repository, while agents and skills are workspace-wide. Choose a repository in the sidebar to attach its documents."
+    }
   }
 }

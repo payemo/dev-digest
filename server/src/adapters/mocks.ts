@@ -31,6 +31,9 @@ import type {
   AuthWorkspace,
   SecretsProvider,
   SecretKey,
+  ProjectDocFile,
+  ProjectDocScan,
+  ProjectDocSource,
 } from '@devdigest/shared';
 import { parseUnifiedDiff } from './git/diff-parser.js';
 
@@ -292,6 +295,47 @@ export class MockGitClient implements GitClient {
   }
   async readFile(_repo: RepoRef, path: string): Promise<string> {
     return this.opts.files?.[path] ?? '';
+  }
+}
+
+// ---------- Mock ProjectDocSource ----------
+export interface MockDocSourceOptions {
+  files?: ProjectDocFile[];
+  /** `false` simulates a missing/unreadable clone (the port's "keep what is stored"). */
+  available?: boolean;
+  head?: string | null;
+  bounded?: number;
+  skippedTooLarge?: number;
+}
+
+/**
+ * Deterministic document scan from a plain fixture, so the whole sync use case
+ * — including "no clone", "over the document bound" and "a file vanished" —
+ * is testable with no temp directory and no filesystem at all.
+ */
+export class MockDocSource implements ProjectDocSource {
+  public scans = 0;
+
+  constructor(private opts: MockDocSourceOptions = {}) {}
+
+  /** Swap the fixture between two syncs to simulate the clone changing. */
+  setFiles(files: ProjectDocFile[]): void {
+    this.opts = { ...this.opts, files };
+  }
+
+  async scan(): Promise<ProjectDocScan> {
+    this.scans += 1;
+    const available = this.opts.available ?? true;
+    if (!available) {
+      return { files: [], head: null, available: false, bounded: 0, skippedTooLarge: 0 };
+    }
+    return {
+      files: this.opts.files ?? [],
+      head: this.opts.head ?? 'a1b2c3d4',
+      available: true,
+      bounded: this.opts.bounded ?? 0,
+      skippedTooLarge: this.opts.skippedTooLarge ?? 0,
+    };
   }
 }
 

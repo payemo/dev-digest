@@ -7,9 +7,11 @@ export interface EditorTab {
   icon: IconName;
 }
 
-/** Skill Editor tabs — Config / Preview / Stats / Versions (no Evals tab). */
+/** Skill Editor tabs — Config / Context / Preview / Stats / Versions (no
+ *  Evals tab). */
 export const TABS: readonly EditorTab[] = [
   { key: "config", labelKey: "editor.tabs.config", icon: "Settings" },
+  { key: "context", labelKey: "editor.tabs.context", icon: "FileText" },
   { key: "preview", labelKey: "editor.tabs.preview", icon: "Eye" },
   { key: "stats", labelKey: "editor.tabs.stats", icon: "Gauge" },
   { key: "versions", labelKey: "editor.tabs.versions", icon: "History" },
