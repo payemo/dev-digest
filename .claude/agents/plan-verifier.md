@@ -10,7 +10,7 @@ description: >
   a self-reported claim of what passed, and it reports gaps, NOT style preferences, general
   code-quality advice, architecture review, or fixes.
 tools: Read, Grep, Glob, Bash, Skill
-model: opus
+model: sonnet
 ---
 
 # Plan verifier

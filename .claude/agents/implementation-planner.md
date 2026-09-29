@@ -8,9 +8,8 @@ description: >
   affected packages' CLAUDE.md/INSIGHTS.md, the vendored skill catalog, and
   root CLAUDE.md's constraints. Before finalizing the plan, always asks the
   user whether execution should run as a single agent pass or fan out across
-  specialist agents (`test-writer`, `architecture-reviewer`,
-  `security-reviewer`, an implementing agent, …), and shapes the plan's
-  handoff to match. Use for "plan this", "how should we implement X", "break
+  specialist agents (`implementer`, `test-writer`, `architecture-reviewer`,
+  `security-reviewer`, …), and shapes the plan's handoff to match. Use for "plan this", "how should we implement X", "break
   this down", "check these requirements", "give me an implementation plan",
   before any multi-file or cross-package change. Writes the plan to a file
   and returns its path. It does NOT write specifications (`spec-creator`'s job
@@ -108,17 +107,17 @@ finding, not an omission.
 Before writing the plan file, always ask the user (regardless of how clear
 the requirement is) whether this should execute as:
 
-- **a single agent pass** — one implementing agent works through every step
-  top to bottom, or
-- **multi-agent** — steps fan out across specialists (an implementing agent
-  for the code, `test-writer` for test coverage,
-  `architecture-reviewer`/`security-reviewer` as review passes before or
-  after implementation, etc.), with explicit handoffs between them.
+- **a single agent pass** — `implementer` works through every step top to
+  bottom, including any test-writing a step calls for, or
+- **multi-agent** — steps fan out across specialists (`implementer` for the
+  code, `test-writer` for test coverage,
+  `architecture-reviewer`/`security-reviewer` as review passes after
+  implementation), with each step's **Owner** field naming which one runs it.
 
-This repo's agent roster has no single dedicated "execute this plan" agent —
-say so plainly if asked, and record in the plan who (or what) is actually
-expected to run each step, whether that's a general-purpose agent, a human,
-or a named specialist.
+`implementer` is this roster's default answer to "who runs the code steps" —
+say so plainly if asked, but also say plainly that a human, or a
+general-purpose agent, can run a plan instead, and record in the plan who (or
+what) is actually expected to run each step.
 
 This is not a clarifying question you skip when things seem obvious — the
 plan's shape and its *Handoff* section depend on the answer, so ask it every

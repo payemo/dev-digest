@@ -13,26 +13,28 @@ file itself for its full method and constraints.
 | [brainstorm](brainstorm.md) | Explores an open-ended problem into several grounded candidate approaches, picks none | `Read, Grep, Glob, Bash, WebFetch, WebSearch` | `opus` |
 | [spec-creator](spec-creator.md) | Writes the upstream spec a change starts from — requirements, no implementation detail | `Read, Grep, Glob, Bash, Write, Skill, Agent` | `opus` |
 | [implementation-planner](implementation-planner.md) | Reviews requirements/specs, clarifies and recommends, turns them into a self-contained Development Plan | `Read, Grep, Glob, Bash, Write, Skill` | `opus` |
+| [implementer](implementer.md) | Executes an approved Development Plan's code steps, running the touched packages' test suites | `Read, Grep, Glob, Edit, Write, Bash, Skill` | `opus` |
 | [test-writer](test-writer.md) | Writes and runs tests for existing client/server/reviewer-core code | `Read, Grep, Glob, Edit, Write, Bash, Skill` (+ `skills: react-testing-library`) | `opus` |
-| [architecture-reviewer](architecture-reviewer.md) | Physically read-only; reviews onion-architecture boundaries only, with evidence | `Read, Grep, Glob, Bash` (+ `skills: onion-architecture`) | `opus` |
+| [architecture-reviewer](architecture-reviewer.md) | Physically read-only; reviews onion-architecture boundaries only, with evidence | `Read, Grep, Glob, Bash` (+ `skills: onion-architecture`) | `sonnet` |
 | [security-reviewer](security-reviewer.md) | Physically read-only; reviews exploitable security weaknesses only, with evidence | `Read, Grep, Glob, Bash` (+ `skills: security`) | `opus` |
-| [plan-verifier](plan-verifier.md) | Read-only; reconciles a finished diff against a specific Development Plan, step by step | `Read, Grep, Glob, Bash, Skill` | `opus` |
+| [plan-verifier](plan-verifier.md) | Read-only; reconciles a finished diff against a specific Development Plan, step by step | `Read, Grep, Glob, Bash, Skill` | `sonnet` |
 | [doc-writer](doc-writer.md) | Turns a plan/diff/feature into documentation in the correct `docs/`/`specs/` location | `Read, Grep, Glob, Bash, Write, Edit, Skill` | `sonnet` |
 
 **`spec-creator` is the one exception to an otherwise strict rule:** none of
-the other eight has `Agent` in its tool list, and none can spawn further
+the other nine has `Agent` in its tool list, and none can spawn further
 agents. `spec-creator`'s `Agent` access is itself scoped by its own prompt to
 spawning `researcher` only — never `implementation-planner`, never itself,
 never anything that writes or executes. `architecture-reviewer` covers
 layering and dependency direction only; `security-reviewer` covers
 exploitable security weaknesses only — between them, this pipeline's two
 read-only review agents still don't cover general correctness
-(`/code-review`) or test quality (`test-writer`). **Executing an approved
-plan is also not covered by any agent here** — `implementation-planner`
-stops at the plan file; who (or what) carries it out is a decision recorded
-in the plan's own *Execution mode* field, not a role this roster fills. PR
-creation remains **not** covered by any agent here either; `pr-self-review`
-(a skill, not an agent) gates `gh pr create` via
+(`/code-review`) or test quality (`test-writer`). `implementer` carries out
+an approved plan's code steps — `implementation-planner` still stops at the
+plan file, and the plan's own *Execution mode* field still records whether
+`implementer` runs alone or fans out with the review specialists, since who
+runs each step is a plan decision, not a hardcoded pipeline. PR creation
+remains **not** covered by any agent here either; `pr-self-review` (a skill,
+not an agent) gates `gh pr create` via
 `.claude/hooks/pr-self-review-gate.sh`.
 
 ## Responsibilities, permissions, artifacts
@@ -126,6 +128,31 @@ creation remains **not** covered by any agent here either; `pr-self-review`
   The file is the deliverable, not the chat reply — see
   [Handoff](#handoff-implementation-planner--execution).
 
+### implementer
+
+- **Does:** executes an approved Development Plan — applies the skills
+  `routing.md` maps to each file it touches, makes exactly the change each
+  step describes, and runs the touched packages' existing test suites (the
+  verbatim `TESTING.md` commands) plus `typecheck`. Under multi-agent
+  execution it runs only the steps the plan's *Owner* field assigns to it,
+  handing the rest to the named specialist rather than duplicating it.
+- **Does not:** plan, write specs, write new tests beyond what a step
+  explicitly calls for (deeper coverage is `test-writer`'s job), review
+  architecture or security, resolve a step's ambiguity by guessing (a stop
+  condition, not a judgment call), hand-edit a migration or lockfile, commit,
+  open a PR, or spawn agents.
+- **Permissions:** `Read, Grep, Glob, Edit, Write, Bash, Skill` — the same
+  shape as `test-writer`'s. `Skill` is on-demand, per file, via
+  [`pr-self-review/routing.md`](../skills/pr-self-review/routing.md), the same
+  map `implementation-planner` used to predict the plan's *Skills to be
+  applied* table — a live mismatch between that table and the routing lookup
+  is a deviation to report, not silently resolved either way.
+- **Input:** the path to a plan file `implementation-planner` wrote.
+- **Output:** its final message — an implementation report (changes made per
+  step, skills applied, verbatim verification output, deviations from the
+  plan, steps not done or handed off, and what's explicitly left for the
+  review agents downstream).
+
 ### test-writer
 
 - **Does:** writes tests for existing `client/`, `server/`, and
@@ -157,6 +184,11 @@ creation remains **not** covered by any agent here either; `pr-self-review`
   `Skill` is deliberately absent from `tools:` since `onion-architecture` is
   preloaded via `skills:` — the agent cannot reach for an unrelated skill
   mid-review.
+- **Model:** `sonnet` (moved from `opus` on cost grounds, 2026-09-29) — the
+  check is machine-anchored by `depcruise` and a short exception list, which
+  narrows the judgment this agent actually has to exercise. If findings
+  quality regresses in practice, move it back — this was a cost call, not a
+  correctness one.
 - **Input:** a diff or target to review.
 - **Output:** its final message — a findings table (or an explicit "no
   findings" line), the `depcruise`/`typecheck` output verbatim, and what was
@@ -192,6 +224,13 @@ creation remains **not** covered by any agent here either; `pr-self-review`
   not traceable to a named step or an explicit requirement goes to a separate
   "Observed, out of scope" list, never the verdict.
 - **Permissions:** `Read, Grep, Glob, Bash, Skill` — no `Write`/`Edit`/`Agent`.
+- **Model:** `sonnet` (moved from `opus` on cost grounds, 2026-09-29) — same
+  reasoning as `architecture-reviewer`: the job is a per-step traceability
+  check against explicit "Done when" conditions, not open-ended judgment.
+  `security-reviewer` stays on `opus` deliberately — exploit reasoning is a
+  higher-consequence category than a checklist reconciliation, and isn't
+  anchored by a machine check the way `architecture-reviewer`'s is by
+  `depcruise`.
 - **Input:** the path to a plan file (and, ideally, the original request it
   was written against).
 - **Output:** its final message — a per-step traceability table (one of five
@@ -241,31 +280,34 @@ unambiguous change can skip straight to `implementation-planner`), but when a
 spec exists, `implementation-planner` treats it as the requirement source
 rather than re-deriving one from a paraphrase.
 
-## Handoff: implementation-planner → execution
+## Handoff: implementation-planner → implementer
 
 Because a subagent inherits none of the caller's conversation,
-`implementation-planner` cannot hand whoever executes the plan a chat
-summary — it hands a **file path**. This is why every plan step must name
-exact file paths and be readable with zero shared context (enforced in
+`implementation-planner` cannot hand `implementer` a chat summary — it hands
+a **file path**. This is why every plan step must name exact file paths and
+be readable with zero shared context (enforced in
 `implementation-planner.md`'s own self-containment rule and quality-bar
 checklist).
 
-This repo's agent roster has no dedicated "execute this plan" agent —
-`implementation-planner`'s Step 2 always asks the user whether a single
-general-purpose agent pass or a multi-agent fan-out (specialists for tests,
-architecture review, security review, and the code itself) should carry the
-plan out, and records the answer in the plan's own **Execution mode** field
-rather than assuming a fixed downstream agent.
+`implementation-planner`'s Step 2 always asks the user whether execution runs
+as a **single agent pass** (`implementer` alone works through every step top
+to bottom, including any test-writing a step calls for) or **multi-agent**
+(`implementer` handles the code steps; `test-writer`, `architecture-reviewer`,
+and `security-reviewer` own the steps the plan's *Owner* field assigns to
+them), and records the answer in the plan's own **Execution mode** field. A
+human, or a general-purpose agent, can still carry out a plan instead — the
+*Execution mode* field records that choice too — but `implementer` is this
+roster's default answer to "who runs the code steps."
 
-## Handoff: implementation-planner / execution → plan-verifier / doc-writer
+## Handoff: implementer → plan-verifier / doc-writer
 
 The same zero-shared-context rule applies here. `plan-verifier` is handed
-the same plan file path execution was handed — it never receives the plan or
-an execution report as pasted chat text, and it re-runs verification itself
-rather than trusting either. `doc-writer` is handed a plan path or a diff,
-never a chat summary of what was built — if the material handed to it is too
-thin to document without guessing, it stops and asks rather than inventing
-behaviour.
+the same plan file path `implementer` was handed — it never receives the plan
+or `implementer`'s report as pasted chat text, and it re-runs verification
+itself rather than trusting either. `doc-writer` is handed a plan path or a
+diff, never a chat summary of what was built — if the material handed to it
+is too thin to document without guessing, it stops and asks rather than
+inventing behaviour.
 
 ## Sources the rules in implementation-planner are grounded in
 
@@ -276,7 +318,10 @@ as house style. The agent went through two renames and a merge — a plan-only
 `planner` and an execution-reviewing `implementation-planner` were merged
 into one agent (kept as `planner`), then renamed to `implementation-planner`
 once `spec-creator` took over writing the spec upstream of it — so some rows
-below reflect design decisions made under an earlier name but still hold.
+below reflect design decisions made under an earlier name but still hold. That
+same commit retired the old `implementer` (execution) agent entirely, on the
+reasoning that no plan named a fixed executor; [Sources for
+implementer](#sources-for-implementer) below covers why it was restored.
 Each row names the rule and where it lands.
 
 | Source | Rule | Where applied |
@@ -285,7 +330,7 @@ Each row names the rule and where it lands.
 | Same page — Agent Tool Restrictions | Omitting `Agent` from `tools` is the enforced way to stop a subagent spawning children — not a prompt instruction | `Agent` absent from `implementation-planner`'s allowlist; it still states "never spawn other agents" in prose as belt-and-suspenders |
 | Same page — Description Field and Automatic Delegation | `description` should state trigger conditions, not a role label, and stay short (combined agent descriptions >15k tokens warn at startup) | `description` opens with the action + explicit trigger phrases, detail deferred to the body |
 | [Subagents blog](https://claude.com/blog/subagents-in-claude-code) | Specificity in `description` beats a generic capability label | Names concrete trigger phrases ("plan this", "check these requirements") over a role noun |
-| [Subagents](https://code.claude.com/docs/en/sub-agents) — Context Isolation | A subagent inherits its own system prompt, the delegation message, and CLAUDE.md — **not** prior conversation, already-read files, or already-invoked skills; it returns only a summary | Drives the file-based [handoff](#handoff-implementation-planner--execution) — `implementation-planner.md`'s explicit "no 'as discussed above'" rule |
+| [Subagents](https://code.claude.com/docs/en/sub-agents) — Context Isolation | A subagent inherits its own system prompt, the delegation message, and CLAUDE.md — **not** prior conversation, already-read files, or already-invoked skills; it returns only a summary | Drives the file-based [handoff](#handoff-implementation-planner--implementer) — `implementation-planner.md`'s explicit "no 'as discussed above'" rule |
 | [How we built our multi-agent research system](https://www.anthropic.com/engineering/multi-agent-research-system) | A subagent needs an objective, an output format, tool/source guidance, and clear task boundaries; prefer subagents storing work externally and returning a lightweight reference over routing everything through the caller's context | `implementation-planner`'s prompt has those four as separate sections; it writes to `docs/plans/` and returns a path, not the plan text |
 | [Best practices for Claude Code](https://code.claude.com/docs/en/best-practices) | Subagents suit research-heavy or fresh-perspective work, not sequential/dependent steps; named failure patterns include the trust-then-verify gap and unscoped exploration | Basis for keeping planning and execution conceptually separate even with one merged planning agent — `implementation-planner` never executes a step itself, per its own hard constraints |
 | Same page — adversarial review pattern | A reviewer subagent should see only the diff and stated criteria, not the reasoning that produced it | Basis for keeping architecture/security review as separate agents, never done by `implementation-planner` or by whoever executes its plan |
@@ -297,6 +342,27 @@ Each row names the rule and where it lands.
 | [`pr-self-review/routing.md`](../skills/pr-self-review/routing.md) (this repo) | A single path→skill map already exists, including content-triggered cross-cutting lanes | `implementation-planner` references this file directly instead of duplicating the routing table |
 | [`TESTING.md`](../../TESTING.md) (this repo) | Server tests run via `pnpm exec vitest run --exclude '**/*.it.test.ts'` / `vitest run .it.test`, not `pnpm test:unit`, because `server/package.json` is `skip-worktree` | Verbatim commands named in the plan's own `Test plan` field |
 | Root [`CLAUDE.md`](../../CLAUDE.md) — Do not touch / Insights loop | Never hand-edit migrations or lockfiles; `INSIGHTS.md` is high-confidence guidance to read before working in a package | `implementation-planner.md` Hard constraints and Required inputs |
+
+### Sources for implementer
+
+`implementer` is not new research — it restores the `implementer.md` this
+repo carried before commit `5ae43ab` ("feat(agents): add spec-creator,
+replace planner/implementer with implementation-planner", 2026-09-29) retired
+it, on the reasoning that "no agent here executes a plan directly anymore."
+That reasoning held only as long as no plan ever named a fixed executor; once
+`implementation-planner` kept stopping at a plan file with nothing in the
+roster to hand it to, the tradeoff flipped back, restoring the brainstorm →
+planner → implementer → (architecture-reviewer ∥ test-writer) →
+security-reviewer → plan-verifier chain end to end.
+
+Restored verbatim except for three updates the intervening commit made
+necessary:
+
+| Change from the retired version | Why |
+|---|---|
+| Plan-writer name `planner` → `implementation-planner` throughout | The plan `implementer` consumes is now written by the renamed/merged agent |
+| Package count and lockfile-manager line: four packages → five, `mcp/` added to the npm group | Root [`CLAUDE.md`](../../CLAUDE.md)'s layout table now lists `mcp/`, added after the old `implementer` was retired |
+| New **Owner-field discipline**: check the plan's Execution mode and Owner columns before running a step | The old `implementer` always ran every step alone; `implementation-planner`'s plan template (added in the same commit that retired `implementer`) now supports multi-agent execution with a per-step Owner, so `implementer` must skip steps owned by `test-writer`/`architecture-reviewer`/`security-reviewer` rather than duplicate them |
 
 ### Sources for spec-creator
 

@@ -11,7 +11,7 @@ description: >
   PRs.
 tools: Read, Grep, Glob, Bash
 skills: onion-architecture
-model: opus
+model: sonnet
 ---
 
 # Architecture reviewer

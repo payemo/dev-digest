@@ -20,6 +20,8 @@ Reusable AI skills that provide specialized knowledge and workflows. Canonical l
 | [mermaid-diagram](mermaid-diagram/SKILL.md) | Shared | Mermaid diagrams in markdown (flowcharts, sequence, ERD, …) |
 | [engineering-insights](engineering-insights/SKILL.md) | Shared | Capture a non-obvious finding into the right package's INSIGHTS.md |
 | [pr-self-review](pr-self-review/SKILL.md) | Shared | Pre-PR gate — routes the open diff to the skills in this table, blocks on CRITICAL |
+| [sdd](sdd/SKILL.md) | Shared | `/sdd` — runs the full Spec Driven Development pipeline (spec → plan → multi-agent execution → bounded architecture-review fix loop → plan-verifier) |
+| [implement](implement/SKILL.md) | Shared | `/implement` — narrower sibling of `sdd`: runs an existing plan through implementer → review → bounded fix loop → plan-verifier, without spec-creator/implementation-planner or test-writer |
 
 ## What Are Skills?
 
