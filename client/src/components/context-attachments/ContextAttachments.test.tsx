@@ -3,9 +3,14 @@
    `fetch` is stubbed with a tiny in-memory API so the real hooks (and their
    zod response schemas) run, and every PUT body can be asserted: the contract
    is that each gesture writes the WHOLE ordered id list. `user-event` is not
-   installed in this package, so interactions use `fireEvent`. */
+   installed in this package, so interactions use `fireEvent`.
+
+   Attached documents render FIRST, in their own custom order — dragging (or
+   the grip's Arrow Up/Down) reorders them, and everything else follows in
+   category+path order. Rows carry a `data-testid` so a test can look a row up
+   by document id regardless of where the current order puts it. */
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
-import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, waitFor, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ContextAttachmentSet, ContextDocument, ContextProvenance } from "@devdigest/shared";
@@ -36,12 +41,17 @@ function doc(id: string, over: Partial<ContextDocument>): ContextDocument {
   };
 }
 
-// Rendered order is category (specs, docs, insights) then path.
+// With nothing attached, rendered order is category (specs, docs, insights)
+// then path: api.md, limits.md, style.md.
 const DOCS: ContextDocument[] = [
   doc(ID_A, { name: "api.md", category: "specs", token_count: 1200 }),
   doc(ID_B, { name: "limits.md", category: "specs", token_count: 300, availability: "missing" }),
   doc(ID_C, { name: "style.md", category: "docs", token_count: 7000, origin: "user" }),
 ];
+
+const CONTENT: Record<string, string> = {
+  [ID_A]: "api content body",
+};
 
 /** Server-side state of this owner's own attachment list. */
 let attached: { id: string; provenance: ContextProvenance }[] = [];
@@ -77,6 +87,12 @@ function stubApi(kind: "agent" | "skill") {
     vi.fn(async (url: string, init?: RequestInit) => {
       const path = new URL(url).pathname;
       if (path === `/repos/${REPO}/context/documents`) return json(DOCS);
+      const docMatch = path.match(new RegExp(`^/repos/${REPO}/context/documents/(.+)$`));
+      if (docMatch) {
+        const found = DOCS.find((d) => d.id === docMatch[1]);
+        if (!found) return json({ error: { message: "not found" } }, 404);
+        return json({ ...found, content: CONTENT[found.id] ?? "" });
+      }
       if (path.endsWith("/attachments")) {
         if (init?.method === "PUT") {
           const ids = (JSON.parse(String(init.body)) as { document_ids: string[] }).document_ids;
@@ -103,10 +119,17 @@ function renderTab(kind: "agent" | "skill" = "agent") {
   );
 }
 
-/** The switches, in rendered row order: api.md, limits.md, style.md. */
-async function switches() {
-  await screen.findByText("api.md");
-  return screen.getAllByRole("switch");
+/** A row, looked up by document id — robust to attached-first reordering. */
+async function row(id: string) {
+  return (await screen.findByTestId(`context-row-${id}`)) as HTMLElement;
+}
+
+async function checkboxFor(id: string) {
+  return within(await row(id)).getByRole("checkbox");
+}
+
+async function gripFor(id: string) {
+  return within(await row(id)).getByRole("button", { name: /Drag to reorder/ });
 }
 
 beforeEach(() => {
@@ -119,29 +142,66 @@ afterEach(() => {
 });
 
 describe("ContextAttachments (agent)", () => {
-  it("toggling and reordering each PUT the whole ordered list, and the total sums the attached rows", async () => {
+  it("toggling and reordering (via the grip's Arrow keys) each PUT the whole ordered list, and the total sums the attached rows", async () => {
     renderTab("agent");
-    const [api, limits] = await switches();
+    await screen.findByText("api.md");
     expect(screen.getByText("≈ 0 tokens attached")).toBeInTheDocument();
 
-    fireEvent.click(api!);
+    fireEvent.click(await checkboxFor(ID_A));
     await waitFor(() => expect(puts).toEqual([[ID_A]]));
-    fireEvent.click(limits!);
+    fireEvent.click(await checkboxFor(ID_B));
     await waitFor(() => expect(puts.at(-1)).toEqual([ID_A, ID_B]));
 
     // 1200 + 300 — the stored per-document counts, summed.
     expect(await screen.findByText("≈ 1500 tokens attached")).toBeInTheDocument();
     expect(screen.getByText("2 of 3 attached")).toBeInTheDocument();
 
-    // limits.md is second; moving it up writes the new order in one request.
-    const moveUp = screen.getAllByRole("button", { name: "Move up" });
-    fireEvent.click(moveUp[1]!);
+    // Both are attached, so both render first, in attachment order: api, limits.
+    expect(screen.getByTestId("context-list").textContent).toMatch(/api\.md.*limits\.md.*style\.md/s);
+
+    // limits.md is second in the attached order; Arrow Up on its grip swaps
+    // it with api.md and writes the new order in one request.
+    fireEvent.keyDown(await gripFor(ID_B), { key: "ArrowUp" });
     await waitFor(() => expect(puts.at(-1)).toEqual([ID_B, ID_A]));
 
+    // The row order follows: limits.md now renders before api.md.
+    expect(screen.getByTestId("context-list").textContent).toMatch(/limits\.md.*api\.md.*style\.md/s);
+
     // Detaching removes only that id.
-    fireEvent.click(screen.getAllByRole("switch")[0]!);
+    fireEvent.click(await checkboxFor(ID_A));
     await waitFor(() => expect(puts.at(-1)).toEqual([ID_B]));
     expect(await screen.findByText("≈ 300 tokens attached")).toBeInTheDocument();
+  });
+
+  it("reorders by dragging one attached row onto another", async () => {
+    attached = [
+      { id: ID_A, provenance: "direct" },
+      { id: ID_B, provenance: "direct" },
+    ];
+    renderTab("agent");
+    await screen.findByText("api.md");
+
+    const source = await row(ID_A);
+    const target = await row(ID_B);
+    vi.spyOn(target, "getBoundingClientRect").mockReturnValue({
+      top: 0,
+      bottom: 40,
+      height: 40,
+      left: 0,
+      right: 0,
+      width: 0,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+
+    const dataTransfer = { effectAllowed: "" } as unknown as DataTransfer;
+    fireEvent.dragStart(source, { dataTransfer });
+    // Dropping in the bottom half of limits.md's row places api.md AFTER it.
+    fireEvent.dragOver(target, { dataTransfer, clientY: 30 });
+    fireEvent.drop(target, { dataTransfer });
+
+    await waitFor(() => expect(puts.at(-1)).toEqual([ID_B, ID_A]));
   });
 
   it("flags a missing document, filters the list, and warns over budget without blocking a write (D-3)", async () => {
@@ -150,14 +210,14 @@ describe("ContextAttachments (agent)", () => {
       { id: ID_C, provenance: "direct" },
     ]; // 1200 + 7000 = 8200 > 8000
     renderTab("agent");
-    await switches();
+    await screen.findByText("api.md");
 
     expect(screen.getByText("missing")).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("Above the 8000-token guide");
     expect(screen.getByText("≈ 8200 tokens attached")).toBeInTheDocument();
 
     // Still writable while over the threshold.
-    fireEvent.click(screen.getAllByRole("switch")[1]!); // limits.md
+    fireEvent.click(await checkboxFor(ID_B)); // limits.md
     await waitFor(() => expect(puts.at(-1)).toEqual([ID_A, ID_C, ID_B]));
 
     fireEvent.change(screen.getByRole("textbox", { name: "Filter documents…" }), {
@@ -174,12 +234,23 @@ describe("ContextAttachments (agent)", () => {
       { id: ID_C, provenance: "inherited" },
     ];
     renderTab("agent");
-    const [, limits, style] = await switches();
+    await screen.findByText("api.md");
 
     expect(screen.getByText("via skill")).toBeInTheDocument();
-    fireEvent.click(style!); // the inherited switch is read-only
-    fireEvent.click(limits!);
+    fireEvent.click(await checkboxFor(ID_C)); // the inherited checkbox is read-only
+    fireEvent.click(await checkboxFor(ID_B));
     await waitFor(() => expect(puts).toEqual([[ID_A, ID_B]]));
+  });
+
+  it("previews a document's stored content without letting it be edited", async () => {
+    renderTab("agent");
+    await screen.findByText("api.md");
+
+    fireEvent.click(within(await row(ID_A)).getByRole("button", { name: "Preview" }));
+
+    expect(await screen.findByText("api content body")).toBeInTheDocument();
+    expect(screen.getByText(".devdigest/specs/api.md")).toBeInTheDocument();
+    expect(screen.getByText("Read-only. Edit the file in the repository and press Refresh.")).toBeInTheDocument();
   });
 });
 
@@ -187,7 +258,7 @@ describe("ContextAttachments (skill)", () => {
   it("previews the attached paths under the real ## Project context block", async () => {
     attached = [{ id: ID_A, provenance: "direct" }];
     renderTab("skill");
-    await switches();
+    await screen.findByText("api.md");
 
     expect(screen.getByText("Project context to use")).toBeInTheDocument();
     const preview = screen.getByText(

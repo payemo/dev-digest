@@ -33,12 +33,51 @@ export function filterDocuments(documents: ContextDocument[], query: string): Co
   );
 }
 
-/** Category order first, then path — the listing order both tabs render in. */
+/** Category order first, then path — the fallback order for anything with no
+ *  attachment position of its own. */
 export function sortDocuments(documents: ContextDocument[]): ContextDocument[] {
   return [...documents].sort((a, b) => {
     const byCategory = CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category);
     return byCategory !== 0 ? byCategory : a.path.localeCompare(b.path);
   });
+}
+
+/**
+ * The row order the list actually renders in: attached documents first, in
+ * their own custom order (`orderedIds`), then everything else in category+path
+ * order. The hint text promises "a document earlier in this list appears
+ * earlier in the assembled block" — so the on-screen position must BE the
+ * order, not a separate figure a drag gesture updates invisibly.
+ */
+export function orderForDisplay(
+  documents: ContextDocument[],
+  orderedIds: string[],
+): ContextDocument[] {
+  const rank = new Map(orderedIds.map((id, i) => [id, i]));
+  const attached = documents
+    .filter((d) => rank.has(d.id))
+    .sort((a, b) => rank.get(a.id)! - rank.get(b.id)!);
+  const rest = sortDocuments(documents.filter((d) => !rank.has(d.id)));
+  return [...attached, ...rest];
+}
+
+/**
+ * Move `dragId` next to `overId` — before it, or after when `before` is
+ * false — returning a new array. A no-op if either id is missing from `ids`
+ * (e.g. `overId` belongs to an unattached row, which has no position to drop
+ * onto) or if they're the same id.
+ */
+export function reorderIds(
+  ids: string[],
+  dragId: string,
+  overId: string,
+  before: boolean,
+): string[] {
+  if (dragId === overId || !ids.includes(dragId) || !ids.includes(overId)) return ids;
+  const without = ids.filter((id) => id !== dragId);
+  const at = without.indexOf(overId);
+  without.splice(before ? at : at + 1, 0, dragId);
+  return without;
 }
 
 /**
