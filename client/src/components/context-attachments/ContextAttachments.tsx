@@ -11,12 +11,12 @@
 
 import React from "react";
 import { useTranslations } from "next-intl";
-import { Badge, EmptyState, ErrorState, IconBtn, Skeleton, Toggle } from "@devdigest/ui";
-import { TextInput } from "@devdigest/ui";
+import { Badge, Button, Checkbox, EmptyState, ErrorState, Icon, Skeleton, TextInput } from "@devdigest/ui";
 import type { ContextAttachment, ContextDocument, ContextOwnerKind } from "@/lib/types";
 import { useContextAttachments, useContextDocuments, useSetContextAttachments } from "@/lib/hooks/project-context";
 import { CATEGORY_COLOR, SKELETON_ROWS } from "./constants";
-import { filterDocuments, moveId, sortDocuments, totalTokens, writableIds } from "./helpers";
+import { DocumentPreviewModal } from "./DocumentPreviewModal";
+import { filterDocuments, moveId, orderForDisplay, reorderIds, totalTokens, writableIds } from "./helpers";
 import { s } from "./styles";
 
 function DocumentRow({
@@ -24,41 +24,80 @@ function DocumentRow({
   attachment,
   position,
   lastPosition,
+  dropSide,
   onToggle,
-  onMoveUp,
-  onMoveDown,
+  onMove,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+  onPreview,
 }: {
   document: ContextDocument;
   attachment: ContextAttachment | undefined;
   position: number | null;
   lastPosition: number;
+  dropSide: "before" | "after" | null;
   onToggle: (on: boolean) => void;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
+  onMove: (direction: "up" | "down") => void;
+  onDragStart: (e: React.DragEvent) => void;
+  onDragOver: (e: React.DragEvent) => void;
+  onDrop: (e: React.DragEvent) => void;
+  onDragEnd: () => void;
+  onPreview: () => void;
 }) {
   const t = useTranslations("context");
   const attached = attachment !== undefined;
   const inheritedOnly = attachment?.provenance === "inherited";
+  // Only a directly-attached document has a position in the writable order —
+  // an inherited-only or unattached row has nothing to drag or drop onto.
+  const draggable = attached && position !== null;
+
+  const rowStyle = {
+    ...(attached ? s.rowAttached : s.row),
+    ...(dropSide === "before" ? s.rowDropBefore : dropSide === "after" ? s.rowDropAfter : null),
+  };
+
   return (
-    <div style={attached ? s.rowAttached : s.row}>
-      {attached && position !== null ? (
-        <div style={s.reorderCol}>
-          <IconBtn
-            icon="ArrowUp"
-            label={t("attach.moveUp")}
-            size={22}
-            onClick={position === 0 ? undefined : onMoveUp}
-          />
-          <IconBtn
-            icon="ArrowDown"
-            label={t("attach.moveDown")}
-            size={22}
-            onClick={position === lastPosition ? undefined : onMoveDown}
-          />
-        </div>
-      ) : (
-        <div style={s.reorderSpacer} />
-      )}
+    <div
+      style={rowStyle}
+      data-testid={`context-row-${doc.id}`}
+      draggable={draggable}
+      onDragStart={draggable ? onDragStart : undefined}
+      onDragOver={draggable ? onDragOver : undefined}
+      onDrop={draggable ? onDrop : undefined}
+      onDragEnd={draggable ? onDragEnd : undefined}
+    >
+      <div style={s.leftControls}>
+        {/* An inherited-only document is toggled by detaching it from the
+            skill that supplies it, not from here — so its checkbox is
+            read-only rather than silently converting it into a direct
+            attachment. */}
+        <Checkbox checked={attached} onChange={inheritedOnly ? undefined : onToggle} />
+        <button
+          type="button"
+          aria-label={t("attach.reorder")}
+          title={t("attach.reorder")}
+          tabIndex={draggable ? 0 : -1}
+          onKeyDown={
+            draggable
+              ? (e) => {
+                  if (e.key === "ArrowUp" && position !== 0) {
+                    e.preventDefault();
+                    onMove("up");
+                  } else if (e.key === "ArrowDown" && position !== lastPosition) {
+                    e.preventDefault();
+                    onMove("down");
+                  }
+                }
+              : undefined
+          }
+          style={draggable ? s.grip : { ...s.grip, ...s.gripDisabled }}
+          disabled={!draggable}
+        >
+          <Icon.GripVertical size={14} />
+        </button>
+      </div>
 
       <div style={s.meta}>
         <span className="mono" style={s.name}>
@@ -88,10 +127,9 @@ function DocumentRow({
         {doc.category}
       </Badge>
 
-      {/* An inherited-only document is toggled by detaching it from the skill
-          that supplies it, not from here — so its switch is read-only rather
-          than silently converting it into a direct attachment. */}
-      <Toggle on={attached} onChange={inheritedOnly ? () => undefined : onToggle} size={16} />
+      <Button kind="ghost" size="sm" icon="Eye" onClick={onPreview}>
+        {t("attach.preview")}
+      </Button>
     </div>
   );
 }
@@ -111,15 +149,35 @@ export function ContextAttachments({
   const setAttachments = useSetContextAttachments();
 
   const [query, setQuery] = React.useState("");
+  const [previewId, setPreviewId] = React.useState<string | null>(null);
+  const [dragId, setDragId] = React.useState<string | null>(null);
+  const [overId, setOverId] = React.useState<string | null>(null);
+  const [overBefore, setOverBefore] = React.useState(true);
 
   const set = attachments.data;
   const attached = set?.documents ?? [];
   const byId = new Map(attached.map((a) => [a.document.id, a]));
   const ownIds = writableIds(attached);
-  const visible = sortDocuments(filterDocuments(documents.data ?? [], query));
+  const visible = orderForDisplay(filterDocuments(documents.data ?? [], query), ownIds);
 
   const apply = (nextIds: string[]) =>
     setAttachments.mutate({ kind: ownerKind, ownerId, repoId, documentIds: nextIds });
+
+  const dragOverRow = (e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    setOverId(id);
+    setOverBefore(e.clientY - rect.top < rect.height / 2);
+  };
+  const endDrag = () => {
+    setDragId(null);
+    setOverId(null);
+  };
+  const dropOnRow = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (dragId && overId) apply(reorderIds(ownIds, dragId, overId, overBefore));
+    endDrag();
+  };
 
   if (documents.isLoading || attachments.isLoading) {
     return (
@@ -182,7 +240,7 @@ export function ContextAttachments({
         {ownerKind === "skill" ? t("attach.skillHint") : t("attach.orderHint")}
       </p>
 
-      <div style={s.list}>
+      <div style={s.list} data-testid="context-list">
         {visible.map((doc) => {
           const position = ownIds.indexOf(doc.id);
           return (
@@ -192,16 +250,28 @@ export function ContextAttachments({
               attachment={byId.get(doc.id)}
               position={position === -1 ? null : position}
               lastPosition={ownIds.length - 1}
+              dropSide={overId === doc.id && dragId && dragId !== doc.id ? (overBefore ? "before" : "after") : null}
               onToggle={(on) =>
                 apply(on ? [...ownIds, doc.id] : ownIds.filter((id) => id !== doc.id))
               }
-              onMoveUp={() => apply(moveId(ownIds, position, "up"))}
-              onMoveDown={() => apply(moveId(ownIds, position, "down"))}
+              onMove={(direction) => apply(moveId(ownIds, position, direction))}
+              onDragStart={(e) => {
+                e.dataTransfer.effectAllowed = "move";
+                setDragId(doc.id);
+              }}
+              onDragOver={(e) => dragOverRow(e, doc.id)}
+              onDrop={dropOnRow}
+              onDragEnd={endDrag}
+              onPreview={() => setPreviewId(doc.id)}
             />
           );
         })}
         {visible.length === 0 && <p style={s.hint}>{t("attach.noMatches", { query })}</p>}
       </div>
+
+      {previewId && (
+        <DocumentPreviewModal repoId={repoId} docId={previewId} onClose={() => setPreviewId(null)} />
+      )}
 
       {ownerKind === "skill" && (
         <div>
