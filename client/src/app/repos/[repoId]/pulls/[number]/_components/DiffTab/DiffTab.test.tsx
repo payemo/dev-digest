@@ -7,6 +7,8 @@ import { NextIntlClientProvider } from "next-intl";
 import type { PrFile, ReviewRecord, SmartDiff } from "@devdigest/shared";
 import prReview from "../../../../../../../../messages/en/prReview.json";
 import shell from "../../../../../../../../messages/en/shell.json";
+// DiffTab reads the `brief` namespace for its one "not in this PR's diff" notice.
+import brief from "../../../../../../../../messages/en/brief.json";
 
 const smartDiffResult = { data: undefined as SmartDiff | undefined, isError: false };
 const reviewsResult = { data: undefined as ReviewRecord[] | undefined };
@@ -90,10 +92,10 @@ const REVIEW: ReviewRecord = {
   ],
 };
 
-function renderTab() {
+function renderTab(props: Partial<React.ComponentProps<typeof DiffTab>> = {}) {
   return render(
-    <NextIntlClientProvider locale="en" messages={{ prReview, shell }}>
-      <DiffTab prId="pr-1" filesCount={FILES.length} files={FILES} canComment />
+    <NextIntlClientProvider locale="en" messages={{ prReview, shell, brief }}>
+      <DiffTab prId="pr-1" filesCount={FILES.length} files={FILES} canComment {...props} />
     </NextIntlClientProvider>,
   );
 }
@@ -140,6 +142,43 @@ describe("DiffTab", () => {
 
     expect(screen.queryByText("Hardcoded Stripe secret key")).not.toBeInTheDocument();
     expect(screen.getByTestId("finding-dot")).toBeInTheDocument();
+  });
+
+  it("tells the user when a deep-link target is not a file in this PR's diff", () => {
+    smartDiffResult.data = smartDiff();
+    // A blast-map caller file: a valid brief target, but not in the diff.
+    renderTab({ target: { file: "src/api/public/items.ts", line: 23 } });
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "File not in this PR's diff: src/api/public/items.ts",
+    );
+    cleanup();
+
+    smartDiffResult.data = smartDiff();
+    renderTab({ target: { file: "src/pay.ts", line: 2 } });
+    expect(screen.queryByText(/File not in this PR's diff/)).not.toBeInTheDocument();
+  });
+
+  it("force-opens the default-collapsed group that holds the deep-link target", () => {
+    const docsFile: PrFile = { path: "docs/limits.md", additions: 3, deletions: 0, patch: PATCH };
+    const files = [...FILES, docsFile];
+    const groups = smartDiff();
+    groups.groups[3] = {
+      role: "docs",
+      files: [{ path: "docs/limits.md", pseudocode_summary: null, additions: 0, deletions: 0, finding_lines: [] }],
+    };
+    smartDiffResult.data = groups;
+
+    // Without a target the docs group starts collapsed…
+    renderTab({ files, filesCount: files.length });
+    expect(screen.queryByText("docs/limits.md")).not.toBeInTheDocument();
+    cleanup();
+
+    // …with one, it opens and the target file is on screen.
+    smartDiffResult.data = groups;
+    renderTab({ files, filesCount: files.length, target: { file: "docs/limits.md", line: 2 } });
+    expect(screen.getByText("docs/limits.md")).toBeInTheDocument();
+    // Boilerplate, which holds no target, stays collapsed.
+    expect(screen.queryByText("pnpm-lock.yaml")).not.toBeInTheDocument();
   });
 
   it("falls back to the flat list with a muted note when /smart-diff fails", () => {

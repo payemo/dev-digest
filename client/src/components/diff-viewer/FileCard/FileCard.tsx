@@ -27,6 +27,7 @@ import {
   type DiffFindingAnchor,
   type DiffFindingApi,
 } from "../findings";
+import { type DiffTarget } from "../target";
 import { s, chevronFor } from "../styles";
 import { CodeLine } from "../CodeLine";
 import { OutdatedComments } from "../OutdatedComments";
@@ -53,15 +54,35 @@ export function FileCard({
   file,
   commenting,
   findings,
+  target,
 }: {
   file: PrFile;
   commenting?: DiffCommentApi;
   findings?: DiffFindingApi;
+  /** When it names this file, the card force-opens and scrolls to the line. */
+  target?: DiffTarget | null;
 }) {
   const t = useTranslations("shell");
+  const isTarget = target?.file === file.path;
+  const targetLine = isTarget ? (target?.line ?? null) : null;
   const [open, setOpen] = React.useState(
-    (file.additions ?? 0) + (file.deletions ?? 0) <= AUTO_EXPAND_MAX_LINES
+    isTarget || (file.additions ?? 0) + (file.deletions ?? 0) <= AUTO_EXPAND_MAX_LINES
   );
+  const rootRef = React.useRef<HTMLDivElement | null>(null);
+
+  // Syncing with the DOM (scroll position) whenever a deep link points here:
+  // open first, then scroll on the next frame, once the lines have rendered.
+  React.useEffect(() => {
+    if (!isTarget) return;
+    setOpen(true);
+    const frame = requestAnimationFrame(() => {
+      const root = rootRef.current;
+      if (!root) return;
+      const el = root.querySelector<HTMLElement>("[data-diff-focus]") ?? root;
+      el.scrollIntoView?.({ block: "center" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [isTarget, targetLine]);
   const lines = React.useMemo(() => parsePatch(file.patch), [file.patch]);
 
   // Group this file's comments into threads, then split into ones we can anchor
@@ -96,7 +117,7 @@ export function FileCard({
     : 0;
 
   return (
-    <div style={s.fileCard}>
+    <div ref={rootRef} style={s.fileCard}>
       <div
         role="button"
         tabIndex={0}
@@ -151,6 +172,7 @@ export function FileCard({
                 commenting={commenting}
                 anchors={anchorsForLine(ln, matchedAnchors)}
                 findings={findings}
+                focused={targetLine != null && ln.kind !== "del" && ln.newNo === targetLine}
               />
             ))
           )}

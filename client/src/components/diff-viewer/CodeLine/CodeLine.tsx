@@ -9,7 +9,7 @@ import React from "react";
 import { commentTargetFor, type CommentThread, type DiffCommentApi, cs } from "../comments";
 import { type DiffFindingAnchor, type DiffFindingApi } from "../findings";
 import { type Line } from "../helpers";
-import { s, findingLabel, findingStripeFor, lineRowFor, lineSignFor } from "../styles";
+import { s, findingLabel, findingStripeFor, focusedLine, lineRowFor, lineSignFor } from "../styles";
 import { CommentThreadView } from "../CommentThreadView";
 import { InlineComposer } from "../InlineComposer";
 
@@ -20,6 +20,7 @@ export function CodeLine({
   commenting,
   anchors,
   findings,
+  focused = false,
 }: {
   ln: Line;
   path: string;
@@ -28,6 +29,8 @@ export function CodeLine({
   /** Findings citing this exact line; empty for every other row. */
   anchors?: DiffFindingAnchor[];
   findings?: DiffFindingApi;
+  /** The deep-link target line: highlighted and marked `data-diff-focus` for scrolling. */
+  focused?: boolean;
 }) {
   const [hover, setHover] = React.useState(false);
   const [composing, setComposing] = React.useState(false);
@@ -50,10 +53,17 @@ export function CodeLine({
   return (
     <div
       style={cs.rowWrap}
+      data-diff-focus={focused ? "" : undefined}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
-      <div style={marker ? { ...lineRowFor(ln.kind), ...findingStripeFor(marker.severity) } : lineRowFor(ln.kind)}>
+      <div
+        style={{
+          ...lineRowFor(ln.kind),
+          ...(marker ? findingStripeFor(marker.severity) : {}),
+          ...(focused ? focusedLine : {}),
+        }}
+      >
         <span className="mono tnum" style={{ ...s.lineNo, position: "relative" }}>
           {showAdd && target && (
             <button

@@ -2,8 +2,8 @@
    body under the cited line, and the footer block for a finding whose line is
    not in this patch. The dot and the GitHub comment counter are deliberately
    different things, so one test pins that they don't get merged. */
-import { describe, it, expect, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
+import { render, screen, cleanup, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import type { PrFile, PrReviewComment } from "@devdigest/shared";
 import shell from "../../../../messages/en/shell.json";
@@ -134,5 +134,49 @@ describe("FileCard findings", () => {
 
     expect(screen.getByText("1")).toBeInTheDocument();
     expect(screen.queryByTestId("finding-dot")).not.toBeInTheDocument();
+  });
+});
+
+describe("FileCard deep-link target", () => {
+  // A file far over AUTO_EXPAND_MAX_LINES: it would normally start collapsed.
+  const BIG: PrFile = { ...FILE, path: "src/big.ts", additions: 900, deletions: 40 };
+  let scrolled: Element[] = [];
+  const original = Element.prototype.scrollIntoView;
+
+  beforeEach(() => {
+    scrolled = [];
+    // jsdom has no scrollIntoView; record which element was asked to scroll.
+    Element.prototype.scrollIntoView = vi.fn(function (this: Element) {
+      scrolled.push(this);
+    });
+  });
+  afterEach(() => {
+    Element.prototype.scrollIntoView = original;
+  });
+
+  it("a large file starts collapsed without a target", () => {
+    renderCard(<FileCard file={BIG} />);
+    expect(screen.getByRole("button", { expanded: false })).toBeInTheDocument();
+    expect(screen.queryByText(/const b = 2;/)).not.toBeInTheDocument();
+  });
+
+  it("opens a large file it targets, marks the target line, and scrolls that line into view", async () => {
+    renderCard(<FileCard file={BIG} target={{ file: "src/big.ts", line: 12 }} />);
+
+    expect(screen.getByRole("button", { expanded: true })).toBeInTheDocument();
+    // New-side line 12 is the `+const b = 2;` row (hunk starts at +10).
+    const row = screen.getByText(/const b = 2;/).closest("[data-diff-focus]");
+    expect(row).not.toBeNull();
+    // Exactly one line is focused.
+    expect(document.querySelectorAll("[data-diff-focus]")).toHaveLength(1);
+
+    await waitFor(() => expect(scrolled).toHaveLength(1));
+    expect(scrolled[0]).toBe(row);
+  });
+
+  it("ignores a target naming a different file", () => {
+    renderCard(<FileCard file={BIG} target={{ file: "src/other.ts", line: 12 }} />);
+    expect(screen.getByRole("button", { expanded: false })).toBeInTheDocument();
+    expect(document.querySelector("[data-diff-focus]")).toBeNull();
   });
 });
