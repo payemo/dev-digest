@@ -31,6 +31,7 @@ import type { RepoIntel } from '../modules/repo-intel/types.js';
 import { RepoIntelService } from '../modules/repo-intel/service.js';
 import { SkillsService } from '../modules/skills/service.js';
 import { IntentService } from '../modules/intent/service.js';
+import { BlastService } from '../modules/blast/service.js';
 import { type DepGraph, DepCruiseGraph } from '../adapters/depgraph/index.js';
 import { type Tokenizer, TiktokenTokenizer } from '../adapters/tokenizer/index.js';
 import { CloneDocSource } from '../adapters/docsource/clone.js';
@@ -87,6 +88,7 @@ export class Container {
   private _priceBook?: PriceBook;
   private _skills?: SkillsService;
   private _intent?: IntentService;
+  private _blast?: BlastService;
   private _docSource?: ProjectDocSource;
   private _projectContext?: ProjectContextService;
 
@@ -156,6 +158,17 @@ export class Container {
    */
   get intent(): IntentService {
     return (this._intent ??= new IntentService(this));
+  }
+
+  /**
+   * Blast radius, promoted here so the PR Brief can consume another module's
+   * *business logic* (the repo-intel facade mapped onto the blast contract)
+   * through a getter rather than `new BlastService(...)` inside its own
+   * service. Built over `this.repoIntel`, so a test's injected `repoIntel`
+   * override reaches it too.
+   */
+  get blast(): BlastService {
+    return (this._blast ??= new BlastService(this.reviewRepo, this.repoIntel));
   }
 
   /**

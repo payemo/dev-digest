@@ -15,3 +15,11 @@ export const VERDICT_META: Record<
   approve: { c: "var(--ok)", bg: "var(--ok-bg)", icon: "CheckCircle", labelKey: "approve" },
   comment: { c: "var(--info)", bg: "var(--info-bg)", icon: "MessageSquare", labelKey: "comment" },
 };
+
+/** No verdict yet (e.g. a PR Brief before any review): a neutral document icon. */
+export const NEUTRAL_META: { c: string; bg: string; icon: IconName; labelKey: string } = {
+  c: "var(--text-muted)",
+  bg: "var(--bg-surface)",
+  icon: "FileText",
+  labelKey: "",
+};

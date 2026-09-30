@@ -218,8 +218,11 @@ export class IntentService {
     };
   }
 
-  /** Tier 2 — the first closing-keyword reference, resolved over REST. */
-  private async readLinkedIssue(
+  /**
+   * Tier 2 — the first closing-keyword reference, resolved over REST.
+   * Public because the PR Brief reuses this resolver (via `container.intent`).
+   */
+  async readLinkedIssue(
     ref: RepoRef,
     body: string | null,
     log?: RunLogger,

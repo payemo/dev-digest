@@ -19,6 +19,7 @@ import {
   DiffViewer,
   type DiffCommentApi,
   type DiffFindingApi,
+  type DiffTarget,
 } from "@/components/diff-viewer";
 import {
   DEFAULT_COLLAPSED_ROLES,
@@ -46,6 +47,7 @@ export function SmartDiffGroups({
   commenting,
   findings,
   hasReview,
+  target,
 }: {
   groups: SmartDiffGroup[];
   files: PrFile[];
@@ -53,6 +55,8 @@ export function SmartDiffGroups({
   findings?: DiffFindingApi;
   /** False → the counters are replaced by "no review has been run yet". */
   hasReview: boolean;
+  /** A deep-link target: the group holding its file is force-opened. */
+  target?: DiffTarget | null;
 }) {
   const t = useTranslations("prReview");
   // Keyed by role, so flipping the order toggle does not reset what the user
@@ -62,6 +66,15 @@ export function SmartDiffGroups({
   );
   const joined = React.useMemo(() => joinGroups(groups, files), [groups, files]);
   const anchors = findings?.anchors;
+
+  // Force-open the target's group from the prop, never from remembered state:
+  // this component remounts (and reseeds) whenever the order toggle flips.
+  const targetFile = target?.file ?? null;
+  React.useEffect(() => {
+    if (!targetFile) return;
+    const group = joined.find((g) => g.files.some((f) => f.path === targetFile));
+    if (group) setOpen((o) => (o[group.role] ? o : { ...o, [group.role]: true }));
+  }, [targetFile, joined]);
 
   const toggle = (role: SmartDiffRole) => setOpen((o) => ({ ...o, [role]: !o[role] }));
 
@@ -109,7 +122,12 @@ export function SmartDiffGroups({
               </span>
             </div>
             {isOpen && group.files.length > 0 && (
-              <DiffViewer files={group.files} commenting={commenting} findings={findings} />
+              <DiffViewer
+                files={group.files}
+                commenting={commenting}
+                findings={findings}
+                target={target}
+              />
             )}
           </section>
         );

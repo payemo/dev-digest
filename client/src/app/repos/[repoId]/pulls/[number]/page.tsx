@@ -23,6 +23,7 @@ import { useActiveRepo, useRepoNotFound } from "../../../../../lib/repo-context"
 import { ApiError } from "../../../../../lib/api";
 import { githubPrUrl } from "../../../../../lib/github-urls";
 import type { FindingRecord } from "@devdigest/shared";
+import { readDiffTarget, withDiffTarget, withoutDiffTarget } from "./helpers";
 
 export default function PRDetailPage() {
   const params = useParams<{ repoId: string; number: string }>();
@@ -52,13 +53,23 @@ export default function PRDetailPage() {
 
   const tab = search.get("tab") ?? "overview";
   const traceRunId = search.get("trace");
+  const replaceSearch = (sp: URLSearchParams) =>
+    router.replace(`/repos/${repoId}/pulls/${number}${sp.toString() ? `?${sp.toString()}` : ""}`);
   const setParam = (key: string, val: string | null) => {
     const sp = new URLSearchParams(search.toString());
     if (val == null) sp.delete(key);
     else sp.set(key, val);
-    router.replace(`/repos/${repoId}/pulls/${number}${sp.toString() ? `?${sp.toString()}` : ""}`);
+    replaceSearch(sp);
   };
-  const setTab = (t: string) => setParam("tab", t);
+  // Switching tabs by any route other than a deep link drops the diff target.
+  const setTab = (t: string) => {
+    const sp = withoutDiffTarget(search);
+    sp.set("tab", t);
+    replaceSearch(sp);
+  };
+  const openInDiff = (file: string, line: number | null) =>
+    replaceSearch(withDiffTarget(search, file, line));
+  const diffTarget = readDiffTarget(search);
 
   // Reviews come newest-first; each is its own run (grouped into accordions).
   const runs = reviews ?? [];
@@ -133,6 +144,7 @@ export default function PRDetailPage() {
             repoId={repoId}
             repoFullName={repoFullName}
             headSha={pr.head_sha}
+            onOpenInDiff={openInDiff}
           />
         )}
 
@@ -172,6 +184,7 @@ export default function PRDetailPage() {
             canComment={pr.status === "open"}
             repoFullName={repoFullName}
             headSha={pr.head_sha}
+            target={diffTarget}
           />
         )}
       </div>

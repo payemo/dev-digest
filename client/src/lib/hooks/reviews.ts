@@ -13,10 +13,12 @@ import {
   PrIntentRecord as PrIntentRecordSchema,
   SmartDiff as SmartDiffSchema,
   BlastRadiusResponse as BlastRadiusResponseSchema,
+  PrBriefRecord as PrBriefRecordSchema,
 } from "@devdigest/shared";
 import type {
   BlastRadiusResponse,
   FindingActionKind,
+  PrBriefRecord,
   PrIntentRecord,
   PrReviewComment,
   ReviewRecord,
@@ -202,6 +204,37 @@ export function usePrBlastRadius(prId: string | null | undefined) {
     queryKey: reviewKeys.blast(prId),
     queryFn: () => api.get<PrBlastRadius>(`/pulls/${prId}/blast`, BlastRadiusResponseSchema),
     enabled: !!prId,
+  });
+}
+
+// ---- PR Brief — one Why+Risk card on the Overview (L05) ----
+/**
+ * The PR's stored brief, or `null` when none has been generated yet (the
+ * server answers `null`, not 404, so there is no error branch for "none").
+ * Reading costs nothing — no model call, no GitHub call — and a brief from an
+ * older head comes back with `is_stale: true` rather than being regenerated.
+ */
+export function usePrBrief(prId: string | null | undefined) {
+  return useQuery({
+    queryKey: reviewKeys.brief(prId),
+    queryFn: () =>
+      api.get<PrBriefRecord | null>(`/pulls/${prId}/brief`, PrBriefRecordSchema.nullable()),
+    enabled: !!prId,
+  });
+}
+
+/**
+ * Generate (or regenerate) the brief now — one paid model call; 409 while one
+ * is already running for this PR. On success the new record replaces the
+ * cached one; on failure the cache is left alone, so a previous brief stays
+ * visible under the error.
+ */
+export function useGeneratePrBrief(prId: string | null | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      api.post<PrBriefRecord>(`/pulls/${prId}/brief`, undefined, PrBriefRecordSchema),
+    onSuccess: (record) => qc.setQueryData(reviewKeys.brief(prId), record),
   });
 }
 

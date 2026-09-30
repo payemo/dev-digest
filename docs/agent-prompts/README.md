@@ -27,6 +27,7 @@ it lives as a template file under `server/src/prompts/`, loaded by
 |---|---|---|
 | `onboarding.system.md` | per-repo onboarding tour | `modules/repos` |
 | `intent.system.md` | PR intent derivation (L03) | `modules/intent/service.ts` |
+| `brief.system.md` | PR Brief (L05) | `modules/brief/service.ts` |
 
 The conventions below — severity rubric, verdict mapping, findings discipline —
 are about the `{ verdict, summary, score, findings[] }` review contract and do

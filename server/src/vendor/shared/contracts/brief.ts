@@ -92,6 +92,11 @@ export const Risk = z.object({
   title: z.string(),
   explanation: z.string(),
   severity: RiskSeverity,
+  /**
+   * Each entry is `path`, `path:line` or `path:start-end`. Only the PATH part
+   * is validated (against the PR's changed files and its blast map); a ref
+   * whose path fails is stripped before the brief is stored.
+   */
   file_refs: z.array(z.string()),
 });
 export type Risk = z.infer<typeof Risk>;
@@ -163,11 +168,96 @@ export const SmartDiff = z.object({
 });
 export type SmartDiff = z.infer<typeof SmartDiff>;
 
+// ---- Review focus ----
+/**
+ * One "read this first" pointer. `line` has NO positive bound here on purpose:
+ * this shape is also part of the model's output schema, and a bound there
+ * would turn a slightly-off answer into paid schema retries. The server snaps
+ * every line to a real anchor (always >= 1) before anything is stored.
+ */
+export const ReviewFocusItem = z.object({
+  file: z.string(),
+  line: z.number().int(),
+  reason: z.string(),
+});
+export type ReviewFocusItem = z.infer<typeof ReviewFocusItem>;
+
+/**
+ * What the single brief generation call asks the model for. Shape only — no
+ * array caps, no length bounds: capping, snapping and dedupe happen in code
+ * AFTER validation. Field order is generation order, so the summary is written
+ * before the risks and focus items that follow from it. DO NOT REORDER.
+ */
+export const PrBriefModelOutput = z.object({
+  summary: z.string(),
+  risks: z.array(Risk),
+  review_focus: z.array(ReviewFocusItem),
+});
+export type PrBriefModelOutput = z.infer<typeof PrBriefModelOutput>;
+
 // ---- Composed PR Brief (pr_brief.json) ----
+/**
+ * `intent` / `blast` are the SNAPSHOT the model saw, `null` when that input
+ * was missing at generation time. `history` is always empty for now (prior
+ * PRs are out of scope).
+ */
 export const PrBrief = z.object({
-  intent: Intent,
-  blast: BlastRadius,
+  summary: z.string(),
+  intent: Intent.nullable(),
+  blast: BlastRadius.nullable(),
   risks: Risks,
+  review_focus: z.array(ReviewFocusItem),
   history: PrHistory,
 });
 export type PrBrief = z.infer<typeof PrBrief>;
+
+/** How one generation input looked when the brief was generated. */
+export const BriefInputStatus = z.enum(['present', 'missing', 'partial', 'stale']);
+export type BriefInputStatus = z.infer<typeof BriefInputStatus>;
+
+/** Every input, always all five keys — an explicit object, not a record. */
+export const BriefInputs = z.object({
+  intent: BriefInputStatus,
+  blast: BriefInputStatus,
+  description: BriefInputStatus,
+  linked_issue: BriefInputStatus,
+  project_context: BriefInputStatus,
+});
+export type BriefInputs = z.infer<typeof BriefInputs>;
+
+/** What post-validation removed or changed in the model's answer. */
+export const BriefValidation = z.object({
+  risks_dropped: z.number().int().nonnegative(),
+  refs_stripped: z.number().int().nonnegative(),
+  focus_dropped: z.number().int().nonnegative(),
+  focus_snapped: z.number().int().nonnegative(),
+  duplicates_collapsed: z.number().int().nonnegative(),
+});
+export type BriefValidation = z.infer<typeof BriefValidation>;
+
+/** Exactly what `pr_brief.json` holds: the brief plus its provenance. */
+export const PrBriefStored = PrBrief.extend({
+  pr_id: z.string(),
+  head_sha: z.string(),
+  generated_at: z.string(),
+  provider: z.string(),
+  model: z.string().nullish(),
+  attempts: z.number().int(),
+  tokens_in: z.number().int(),
+  tokens_out: z.number().int(),
+  cost_usd: z.number().nullable(),
+  input_tokens_measured: z.number().int(),
+  truncated_sections: z.array(z.string()),
+  inputs: BriefInputs,
+  validation: BriefValidation,
+});
+export type PrBriefStored = z.infer<typeof PrBriefStored>;
+
+/**
+ * The wire shape of `GET` / `POST /pulls/:id/brief`. `is_stale` is derived on
+ * read (stored head SHA vs the PR's current head) and never stored.
+ */
+export const PrBriefRecord = PrBriefStored.extend({
+  is_stale: z.boolean(),
+});
+export type PrBriefRecord = z.infer<typeof PrBriefRecord>;

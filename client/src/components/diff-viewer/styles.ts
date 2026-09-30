@@ -112,6 +112,12 @@ export function findingStripeFor(severity: Severity): CSSProperties {
   return { borderInlineStart: `3px solid ${SEV[severity].c}` };
 }
 
+/** The deep-link target line: an accent wash with an accent left stripe. */
+export const focusedLine: CSSProperties = {
+  background: "var(--accent-bg)",
+  borderInlineStart: "3px solid var(--accent)",
+};
+
 /**
  * The right-aligned `blocker`/`warning`/`suggestion` chip on a cited row.
  * A plain `<span>` wears this — never Chip/Badge, which are interactive

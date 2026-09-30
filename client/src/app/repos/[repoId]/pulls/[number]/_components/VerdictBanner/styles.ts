@@ -28,6 +28,12 @@ export const s = {
     gap: 12,
     flexWrap: "wrap",
   } satisfies CSSProperties,
+  actions: {
+    marginLeft: "auto",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+  } satisfies CSSProperties,
   label: (color: string): CSSProperties => ({ fontSize: 18, fontWeight: 700, color }),
   summary: {
     fontSize: 14,
