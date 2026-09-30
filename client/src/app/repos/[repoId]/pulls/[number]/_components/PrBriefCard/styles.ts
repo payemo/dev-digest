@@ -12,12 +12,30 @@ export const s = {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))",
     gap: 16,
-    alignItems: "start",
+    alignItems: "stretch",
+  } satisfies CSSProperties,
+  /** Grid items may shrink below their content, so long refs never push the card wider. */
+  cell: {
+    minWidth: 0,
   } satisfies CSSProperties,
   panel: {
     display: "flex",
     flexDirection: "column",
     gap: 18,
+    minWidth: 0,
+    overflowWrap: "anywhere",
+  } satisfies CSSProperties,
+  /** The left card sets the row height; the blast card matches it and scrolls inside. */
+  blastCard: {
+    position: "relative",
+    minWidth: 0,
+    minHeight: 320,
+  } satisfies CSSProperties,
+  blastScroll: {
+    position: "absolute",
+    inset: 0,
+    overflow: "auto",
+    padding: "var(--card-pad)",
   } satisfies CSSProperties,
   divider: {
     borderTop: "1px solid var(--border)",

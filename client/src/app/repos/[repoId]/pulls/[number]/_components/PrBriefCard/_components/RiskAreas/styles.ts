@@ -3,14 +3,15 @@ import type { CSSProperties } from "react";
 /** Presentation for RiskAreas. Colours are design tokens, never hex. */
 export const s = {
   grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))",
+    display: "flex",
+    flexDirection: "column",
     gap: 8,
   } satisfies CSSProperties,
   chip: {
     border: "1px solid var(--border)",
     borderRadius: 6,
     background: "var(--bg-surface)",
+    minWidth: 0,
   } satisfies CSSProperties,
   chipHeader: {
     display: "flex",
@@ -36,6 +37,7 @@ export const s = {
     fontSize: 12.5,
     fontWeight: 600,
     color: "var(--text-primary)",
+    overflowWrap: "anywhere",
   } satisfies CSSProperties,
   firstRef: {
     fontSize: 11.5,
@@ -64,6 +66,7 @@ export const s = {
     fontSize: 12.5,
     lineHeight: 1.5,
     color: "var(--text-secondary)",
+    overflowWrap: "anywhere",
   } satisfies CSSProperties,
   refList: {
     display: "flex",
@@ -79,6 +82,8 @@ export const s = {
     color: "var(--accent-text)",
     cursor: "pointer",
     textAlign: "left",
+    maxWidth: "100%",
+    overflowWrap: "anywhere",
   } satisfies CSSProperties,
   empty: {
     fontSize: 13,

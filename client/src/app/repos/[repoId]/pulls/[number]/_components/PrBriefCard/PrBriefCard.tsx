@@ -184,7 +184,7 @@ function BriefBody({
       )}
 
       <div style={s.grid}>
-        <Card>
+        <Card style={s.cell}>
           <div style={s.panel}>
             {record.intent && (
               <>
@@ -196,9 +196,11 @@ function BriefBody({
           </div>
         </Card>
         {record.blast && (
-          <Card>
-            <SectionLabel icon="Workflow">{t("block.blast")}</SectionLabel>
-            <BlastRadiusView data={record.blast} repoFullName={repoFullName} headSha={headSha} />
+          <Card pad={false} style={s.blastCard}>
+            <div style={s.blastScroll}>
+              <SectionLabel icon="Workflow">{t("block.blast")}</SectionLabel>
+              <BlastRadiusView data={record.blast} repoFullName={repoFullName} headSha={headSha} />
+            </div>
           </Card>
         )}
       </div>
