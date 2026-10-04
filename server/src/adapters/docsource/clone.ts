@@ -3,9 +3,10 @@
  * local clone. The `ProjectDocSource` port's only real implementation, and the
  * only place this feature touches the filesystem.
  *
- * Deliberately narrow: it descends ONLY the three category directories under
- * the convention root, so there is no exclusion list to maintain (nothing like
- * `node_modules` can be reached) and the code index's own walk is untouched.
+ * Walks the whole clone for Markdown under a `specs`/`docs`/`insights`
+ * directory at any depth, skipping `EXCLUDED_SCAN_DIRS` (`node_modules`, …) and
+ * hidden directories other than the `.devdigest` convention root. The code
+ * index's own walk is untouched.
  */
 import { lstat, readdir, readFile, realpath, stat } from 'node:fs/promises';
 import type { Dirent } from 'node:fs';
@@ -18,13 +19,14 @@ import type {
   RepoRef,
 } from '@devdigest/shared';
 import {
-  CONTEXT_CATEGORIES,
   CONTEXT_ROOT,
+  EXCLUDED_SCAN_DIRS,
   MARKDOWN_EXT,
   MAX_DOCS_PER_REPO,
   MAX_DOC_BYTES,
   MAX_SCAN_ENTRIES,
 } from '../../modules/project-context/constants.js';
+import { classifyDocument } from '../../modules/project-context/helpers.js';
 
 const MARKDOWN_SET: ReadonlySet<string> = new Set<string>(MARKDOWN_EXT);
 
@@ -67,23 +69,10 @@ export class CloneDocSource implements ProjectDocSource {
       return unavailable;
     }
 
-    const root = join(clonePath, CONTEXT_ROOT);
-    // lstat, never stat: a `.devdigest` that is a symlink is treated exactly
-    // like a missing one, so it can never point the walk outside the clone.
-    // No `.devdigest/` at all is indistinguishable here from no clone at all,
-    // and both mean the same thing to the caller: keep what is stored.
-    if (!(await isRealDirectory(root))) return unavailable;
-
     const candidates: string[] = [];
     let skippedTooLarge = 0;
     const walk: WalkState = { cloneRoot: clonePath, realBase, remaining: MAX_SCAN_ENTRIES };
-    for (const category of CONTEXT_CATEGORIES) {
-      const dir = join(root, category);
-      // A symlinked (or non-directory) category contributes nothing, the same
-      // as a missing one; the other two still scan.
-      if (!(await isRealDirectory(dir))) continue;
-      await collect(walk, dir, candidates);
-    }
+    await collect(walk, clonePath, candidates);
 
     // Sorted so "the first N" is reproducible rather than dependent on
     // directory order, which readdir does not guarantee.
@@ -155,14 +144,13 @@ interface WalkState {
 }
 
 /**
- * Recurse one category directory, appending repo-relative posix paths.
+ * Recurse a directory, appending the repo-relative posix paths of Markdown
+ * files that `classifyDocument` accepts.
  *
- * Three independent layers keep the walk inside the clone:
- *  1. the caller `lstat`s the convention root and each category directory and
- *     skips any that is a symlink, so `readdir` is never handed one;
- *  2. entries that are symlinks are never followed or collected — same rule the
+ * Two independent layers keep the walk inside the clone:
+ *  1. entries that are symlinks are never followed or collected — same rule the
  *     code-index walk uses;
- *  3. each candidate file's real path must fall under the clone's real path
+ *  2. each candidate file's real path must fall under the clone's real path
  *     before it is kept.
  * And the walk visits at most `MAX_SCAN_ENTRIES` entries in total, so a very
  * large tree cannot turn one scan into an unbounded directory walk.
@@ -183,6 +171,11 @@ async function collect(walk: WalkState, dir: string, out: string[]): Promise<voi
     if (entry.isSymbolicLink()) continue;
     const full = join(dir, entry.name);
     if (entry.isDirectory()) {
+      if (EXCLUDED_SCAN_DIRS.has(entry.name)) continue;
+      // Only the convention root may be hidden, and only at the clone root.
+      if (entry.name.startsWith('.') && !(dir === walk.cloneRoot && entry.name === CONTEXT_ROOT)) {
+        continue;
+      }
       await collect(walk, full, out);
       continue;
     }
@@ -191,6 +184,7 @@ async function collect(walk: WalkState, dir: string, out: string[]): Promise<voi
     if (!(await resolvesUnder(walk.realBase, full))) continue;
     // Posix separators so stored paths are platform-agnostic, matching the
     // `pr_files.path` convention.
-    out.push(relative(walk.cloneRoot, full).split(sep).join('/'));
+    const rel = relative(walk.cloneRoot, full).split(sep).join('/');
+    if (classifyDocument(rel)) out.push(rel);
   }
 }

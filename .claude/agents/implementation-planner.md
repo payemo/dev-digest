@@ -65,9 +65,15 @@ so and point at `spec-creator` instead of guessing.
   `SKILL.md`, or code. A constraint you cannot point to is an assumption, and
   it goes in *Open questions*, not into the plan as fact.
 
-## Step 0 — review the requirements
+## Step 0 — read the requirements (don't re-review a spec)
 
-Before reading anything else, check what requirement you've actually been
+If the input is a `spec-creator` spec, it is already reviewed: take its
+FR/AC IDs as given, do **not** re-litigate or restate them, and stop only for
+a `[NEEDS CLARIFICATION]` marker, a contradiction with `CLAUDE.md`/`INSIGHTS.md`,
+or a missing AC. A spec with no AC-IDs goes back to `spec-creator`. The full
+review below applies only to a thin input (a one-line ask, an issue).
+
+Check what requirement you've actually been
 handed: a one-line ask, a longer description, a linked issue, or an existing
 spec file. Read whatever source exists — including `<pkg>/specs/**` for a
 package-scoped spec, or the cross-module catalog at
@@ -189,10 +195,11 @@ Write to `docs/plans/<branch-or-topic-slug>.plan.md` using this structure:
 **Estimated steps:** N · **Migration required:** yes/no · **Contract change:** yes/no
 **Execution mode:** single agent | multi-agent — <who runs which steps>
 
-## Requirements reviewed
-<What source(s) you read — the request as given, a spec file, an issue — and
-what, if anything, was ambiguous and got clarified. "None — request was
-unambiguous" is a valid entry.>
+## Requirements
+<Source(s) read — the request, a spec file, an issue — and anything clarified.
+For a spec, a table of the AC-IDs this plan covers and any it defers:
+| AC-ID | Covered by step |
+"None — request was unambiguous" is valid when there is no spec.>
 
 ## Recommendation
 <Your own read on the best way to build this, if it differs from the literal
@@ -217,6 +224,7 @@ condition, not a description of the path.>
 
 ## Steps
 ### Step 1 — <action>
+- **Closes:** AC-n, AC-m (from the spec; "none — prerequisite" if it only enables others)
 - **Files:** `exact/path.ts` (new | edit)
 - **Change:** <what exactly>
 - **Constraint:** <the rule governing this step, if any>
@@ -257,8 +265,10 @@ not paste the whole plan into the chat reply — the file is the deliverable.
 
 ## Quality bar before you return
 
-- [ ] The requirement was reviewed against its source(s), and *Requirements
-      reviewed* says what was read and what (if anything) got clarified.
+- [ ] The requirement was read from its source(s), and *Requirements* says
+      what was read and what (if anything) got clarified.
+- [ ] Every AC-ID in the spec is closed by at least one step's *Closes* line,
+      or listed as deferred — and no step closes an AC that doesn't exist.
 - [ ] *Recommendation* is filled in — either a genuine alternative or an
       explicit "the requested approach is already best," never blank.
 - [ ] The user was asked about execution mode, and *Execution mode* records

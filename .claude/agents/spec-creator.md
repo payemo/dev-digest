@@ -122,6 +122,14 @@ number, same convention as
 files: **a suggested order, not an id anything references.** Don't renumber
 existing specs to make room.
 
+## The `[NEEDS CLARIFICATION]` rule
+
+Never fill a gap with a plausible guess. Where the request, the repo and
+`researcher` all fail to settle something, write
+`[NEEDS CLARIFICATION: <the question>]` at the exact spot in the spec that
+depends on it and repeat it under *Open questions*. A spec may be handed on
+with markers left, but `implementation-planner` must see them.
+
 ## Output — the spec file
 
 ```markdown
@@ -137,15 +145,32 @@ question `researcher` investigated, with what it found and its citation.>
 ## Goal
 <2-4 sentences: what will be true once this is built. A outcome, not a plan.>
 
+## User stories
+<One per actor goal: "As a <who>, I want <what>, so that <why>". Number
+them US-1, US-2… and keep each independently valuable.>
+
 ## Functional requirements
-| ID | Requirement |
-|---|---|
-| FR-1 | <a single, testable capability> |
+| ID | Requirement | Story | Acceptance criteria |
+|---|---|---|---|
+| FR-1 | <a single, testable capability> | US-1 | AC-1: <observable pass/fail condition> · AC-2: … |
+
+Every FR carries at least one globally-unique `AC-n`. `implementation-planner`
+cites these IDs from its steps, so never reuse or renumber one.
 
 ## Non-functional requirements
 | ID | Requirement |
 |---|---|
 | NFR-1 | <a constraint on performance, reliability, security, etc.> |
+
+## Edge cases
+<Boundary and failure behaviour the happy path hides: empty / maximum input,
+missing or stale data, concurrent actions, partial failure, permission
+denied. One line each, with the expected outcome and the AC it belongs to.>
+
+## Inputs provenance
+| Input | Where it comes from | Trust / freshness |
+|---|---|---|
+| <datum the feature reads> | <user, API, DB, clone, LLM…> | <validated? may be stale? user-controlled?> |
 
 ## Workflow
 <A diagram (Mermaid, via the mermaid-diagram skill) only if a flow, state
@@ -162,7 +187,7 @@ carry — never a concrete type or file. "none" is a valid entry.>
 ## Traceability
 | Requirement | Addressed by |
 |---|---|
-| FR-1 | <Goal / Workflow step / Contract that satisfies it> |
+| FR-1 / AC-1 | <Goal / Workflow step / Contract that satisfies it> |
 
 ## Verification hint
 <For each requirement or the spec as a whole: the observable signal that
@@ -174,12 +199,16 @@ would tell you it's satisfied — an acceptance angle, not a test plan.
 
 ## Open questions
 <What `researcher` couldn't settle, or what only a human can decide. Empty
-means empty — say so explicitly.>
+means empty — say so explicitly. Each one is also marked inline where it
+bites, as `[NEEDS CLARIFICATION: <question>]`.>
 
 ## Self-check
 - [ ] No file path, function/class name, library choice, or code appears
       anywhere above.
-- [ ] Every FR/NFR has at least one Traceability row.
+- [ ] Every FR/NFR has at least one Traceability row; every FR has an AC-ID.
+- [ ] Every user story maps to an FR; edge cases and input provenance filled
+      in (or an explicit "none" with a reason).
+- [ ] Nothing was guessed: each unknown carries `[NEEDS CLARIFICATION]`.
 - [ ] Every claim in *Sources reviewed* traces to a real citation — nothing
       asserted without one.
 - [ ] Existing specs checked for overlap; none silently duplicated or
@@ -202,6 +231,8 @@ the deliverable.
       package.
 - [ ] Every `researcher` call was a self-contained question; independent
       questions were spawned in parallel, not serialized.
+- [ ] No unresolved unknown is written as fact — each is a
+      `[NEEDS CLARIFICATION]` marker.
 - [ ] The spec's own embedded *Self-check* section is filled in, not left as
       the template.
 - [ ] A cross-module spec is registered in `specs/README.md`'s catalog; a
