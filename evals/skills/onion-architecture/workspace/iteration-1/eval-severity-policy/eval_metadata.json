@@ -1,0 +1,11 @@
+{
+  "eval_id": 3,
+  "eval_name": "severity-policy",
+  "prompt": "Review this backend change for DevDigest — a severity floor policy touching reviewer-core and server/. Files under /home/darks/projects/web/dev-digest/evals/skills/onion-architecture/fixtures/severity-policy/ (reviewer-core/src/review/severity.ts and server/src/modules/severity-policy/*). Look at layering, dependency direction and test conventions. Give file:line, severity, reason and fix for each issue. Don't edit the fixture files.",
+  "assertions": [
+    "Flags reviewer-core severity.ts reading process.env and/or the filesystem (core must be pure)",
+    "Flags service.ts importing Fastify / taking FastifyRequest (HTTP leaking into the service)",
+    "Flags policy.test.ts as DB-backed but not named *.it.test.ts",
+    "Does not flag routes.ts or repository.ts as violations (no false positives)"
+  ]
+}

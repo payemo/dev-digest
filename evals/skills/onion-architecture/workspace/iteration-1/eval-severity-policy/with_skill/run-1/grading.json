@@ -1,0 +1,30 @@
+{
+  "expectations": [
+    {
+      "text": "Flags reviewer-core severity.ts reading process.env and/or the filesystem (core must be pure)",
+      "passed": true,
+      "evidence": "CRITICAL severity.ts:1,7,10 node:fs, process.env, readFileSync in core"
+    },
+    {
+      "text": "Flags service.ts importing Fastify / taking FastifyRequest (HTTP leaking into the service)",
+      "passed": true,
+      "evidence": "CRITICAL service.ts:1,22-26 imports FastifyRequest, uses req.body/req.log"
+    },
+    {
+      "text": "Flags policy.test.ts as DB-backed but not named *.it.test.ts",
+      "passed": true,
+      "evidence": "MEDIUM policy.test.ts DB-backed but not *.it.test.ts"
+    },
+    {
+      "text": "Does not flag routes.ts or repository.ts as violations (no false positives)",
+      "passed": false,
+      "evidence": "HIGH repository.ts:3,5,18 flagged for db/schema namespace import / row type — a repository is allowed to import db/schema"
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 1,
+    "total": 4,
+    "pass_rate": 0.75
+  }
+}

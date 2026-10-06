@@ -1,0 +1,11 @@
+{
+  "eval_id": 2,
+  "eval_name": "finding-labels",
+  "prompt": "Here's a new 'finding labels' module for the DevDigest backend (server/): /home/darks/projects/web/dev-digest/evals/skills/onion-architecture/fixtures/finding-labels/server/src/modules/finding-labels/ plus its contract at /home/darks/projects/web/dev-digest/evals/skills/onion-architecture/fixtures/finding-labels/server/src/vendor/shared/contracts/finding-labels.ts. Do a layering/boundary review of these files and tell me what to change, with file:line, severity and a fix for each issue. Don't edit the fixture files.",
+  "assertions": [
+    "Flags helpers.ts importing drizzle-orm / db schema at runtime (helpers must be pure; row types type-only)",
+    "Flags a raw DB row (FindingLabelRow, camelCase) returned from service.list and sent by the route without mapping to a contract DTO",
+    "Flags contracts/finding-labels.ts importing db/schema (core depending on storage)",
+    "Does not flag repository.ts as a layering violation (no false positives)"
+  ]
+}

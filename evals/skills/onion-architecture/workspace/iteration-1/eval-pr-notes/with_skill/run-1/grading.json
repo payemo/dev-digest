@@ -1,0 +1,30 @@
+{
+  "expectations": [
+    {
+      "text": "Flags routes.ts running Drizzle queries / importing drizzle-orm and db schema inline (SQL belongs in the repository)",
+      "passed": true,
+      "evidence": "CRITICAL routes.ts:3,6,23-28 imports drizzle-orm/db schema, inline container.db query"
+    },
+    {
+      "text": "Flags service.ts importing/constructing the Octokit SDK directly instead of going through a GitHub port/adapter (container.github())",
+      "passed": true,
+      "evidence": "CRITICAL service.ts:1,23-24 constructs Octokit; use container.github() port"
+    },
+    {
+      "text": "Flags repository.ts taking the whole Container instead of Db",
+      "passed": true,
+      "evidence": "CRITICAL repository.ts:2,8 takes Container instead of Db"
+    },
+    {
+      "text": "Does not flag helpers.ts or constants.ts as violations (no false positives)",
+      "passed": true,
+      "evidence": "'constants.ts and helpers.ts are clean'"
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 0,
+    "total": 4,
+    "pass_rate": 1.0
+  }
+}

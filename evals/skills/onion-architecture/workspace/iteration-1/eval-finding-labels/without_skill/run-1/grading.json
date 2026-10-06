@@ -1,0 +1,30 @@
+{
+  "expectations": [
+    {
+      "text": "Flags helpers.ts importing drizzle-orm / db schema at runtime (helpers must be pure; row types type-only)",
+      "passed": true,
+      "evidence": "HIGH helpers.ts:1-2,16-18 imports drizzle-orm/db schema; keep helpers pure"
+    },
+    {
+      "text": "Flags a raw DB row (FindingLabelRow, camelCase) returned from service.list and sent by the route without mapping to a contract DTO",
+      "passed": true,
+      "evidence": "MEDIUM service.ts:14 / routes.ts:13-16 raw rows, camelCase vs snake_case contract"
+    },
+    {
+      "text": "Flags contracts/finding-labels.ts importing db/schema (core depending on storage)",
+      "passed": true,
+      "evidence": "CRITICAL contract imports db schema; contract must stay Zod-only"
+    },
+    {
+      "text": "Does not flag repository.ts as a layering violation (no false positives)",
+      "passed": true,
+      "evidence": "repository.ts only got LOW nit (color: string); listed as clean for layering"
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 0,
+    "total": 4,
+    "pass_rate": 1.0
+  }
+}

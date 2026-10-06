@@ -1,0 +1,11 @@
+{
+  "eval_id": 1,
+  "eval_name": "pr-notes",
+  "prompt": "I'm adding a small 'PR notes' feature to the DevDigest backend (server/, Fastify + Drizzle). The new module is in /home/darks/projects/web/dev-digest/evals/skills/onion-architecture/fixtures/pr-notes/server/src/modules/pr-notes/. Review the module's five files for architectural layering problems — what is in the wrong layer or imports something it shouldn't. For each problem give file:line, severity, why it's wrong and the fix. Don't edit the fixture files.",
+  "assertions": [
+    "Flags routes.ts running Drizzle queries / importing drizzle-orm and db schema inline (SQL belongs in the repository)",
+    "Flags service.ts importing/constructing the Octokit SDK directly instead of going through a GitHub port/adapter (container.github())",
+    "Flags repository.ts taking the whole Container instead of Db",
+    "Does not flag helpers.ts or constants.ts as violations (no false positives)"
+  ]
+}
