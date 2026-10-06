@@ -55,12 +55,16 @@ function allWithEvals(tier) {
     .sort();
 }
 
+/** Artifact names come from directory/file names in the PR and end up in shell commands and a job
+ *  matrix, so accept only plain slugs — anything else is reported as a skip, never executed. */
+const SAFE_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
 /** Collect distinct artifact names touched under a `.claude` and/or `evals` prefix. */
 function touched(reClaude, reEvals) {
   const names = new Set();
   for (const f of changed) {
     const m = f.match(reClaude) ?? f.match(reEvals);
-    if (m) names.add(m[1]);
+    if (m && SAFE_NAME.test(m[1])) names.add(m[1]);
   }
   return [...names].sort();
 }

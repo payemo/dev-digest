@@ -91,13 +91,16 @@ jobs:
       - name: Changed files
         id: diff
         working-directory: .
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            base="origin/${{ github.base_ref }}"
-            # ACMR: skip deleted files — an artifact that no longer exists has nothing to evaluate.
-            files="$(git diff --name-only --diff-filter=ACMR "$base"...HEAD)"
+          # ACMR: skip deleted files — an artifact that no longer exists has nothing to evaluate.
+          if [ "$EVENT" = "pull_request" ]; then
+            files="$(git diff --name-only --diff-filter=ACMR "origin/$BASE_REF"...HEAD)"
           else
-            files="$(git diff --name-only --diff-filter=ACMR origin/${{ github.event.repository.default_branch }}...HEAD || true)"
+            files="$(git diff --name-only --diff-filter=ACMR "origin/$DEFAULT_BRANCH"...HEAD || true)"
           fi
           {
             echo 'files<<EOF'
@@ -144,7 +147,9 @@ jobs:
       - run: pnpm typecheck
       - name: SKILL.md structure (changed skills)
         if: needs.detect.outputs.quality_skills != ''
-        run: pnpm eval:quality ${{ needs.detect.outputs.quality_skills }}
+        env:
+          SKILLS: ${{ needs.detect.outputs.quality_skills }}
+        run: pnpm eval:quality $SKILLS # names are validated by ci-detect.mjs
       - run: pnpm exec vitest run src/
 
   # Content tier: skillTask + judge talk to OpenRouter directly (OpenAI format) — no proxy needed.
@@ -171,7 +176,9 @@ jobs:
           cache-dependency-path: evals/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
       - name: Run skill evals
-        run: pnpm exec vitest run "skills/${{ matrix.skill }}"
+        env:
+          SKILL: ${{ matrix.skill }}
+        run: pnpm exec vitest run "skills/$SKILL"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -208,7 +215,9 @@ jobs:
       - run: docker compose -f proxy/docker-compose.yml up -d
       - run: pnpm proxy:wait
       - name: Run agent evals
-        run: pnpm exec vitest run "agents/${{ matrix.agent }}"
+        env:
+          AGENT: ${{ matrix.agent }}
+        run: pnpm exec vitest run "agents/$AGENT"
       - if: failure()
         run: docker compose -f proxy/docker-compose.yml logs --tail 100
       - if: always()
