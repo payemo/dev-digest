@@ -1,8 +1,9 @@
 {
+  "section": "PR Brief",
   "block": {
     "intent": "Intent",
     "blast": "Blast radius",
-    "risks": "Risks",
+    "risks": "Risk areas",
     "history": "PR history"
   },
   "noRisks": "No notable risks flagged.",
@@ -10,6 +11,44 @@
   "overlap": "{count} overlap",
   "unavailable": "Brief not available yet.",
   "unavailableHint": "Run a review or open the PR to compute it.",
+  "empty": {
+    "title": "No brief yet",
+    "hint": "Generate a Why+Risk brief for this PR."
+  },
+  "generate": "Generate brief",
+  "generating": "Generating brief…",
+  "regenerate": "Regenerate brief",
+  "stale": "Stale",
+  "staleHint": "Generated for an older commit. Regenerate to include the latest changes.",
+  "summary": "Summary",
+  "inScope": "In scope",
+  "outOfScope": "Out of scope",
+  "reviewFocus": {
+    "heading": "Review focus — read these first",
+    "empty": "No specific lines to read first."
+  },
+  "missingInputs": "Generated without: {inputs}",
+  "partialInputs": "Partial or outdated: {inputs}",
+  "input": {
+    "intent": "Intent",
+    "blast": "Blast radius",
+    "description": "PR description",
+    "linked_issue": "Linked issue",
+    "project_context": "Project Context specs"
+  },
+  "notInDiff": "File not in this PR's diff: {file}",
+  "error": {
+    "title": "Couldn't generate the brief.",
+    "retry": "Retry"
+  },
+  "conflict": "A brief is already being generated for this PR.",
+  "severity": {
+    "high": "High",
+    "medium": "Medium",
+    "low": "Low"
+  },
+  "expandRisk": "Show details",
+  "costTokens": "{cost} · {tokensIn}→{tokensOut}",
   "why": {
     "title": "git-why",
     "blame": "blame",

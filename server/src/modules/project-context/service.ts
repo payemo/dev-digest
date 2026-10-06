@@ -349,6 +349,50 @@ export class ProjectContextService {
   }
 
   /**
+   * The spec documents the PR Brief reads: the deduplicated union of what
+   * every ENABLED agent in the workspace would receive for this repository
+   * (its own attachments plus those inherited through its enabled skills —
+   * the same merge `effectiveSetForRun` uses), kept to category `specs` and
+   * availability `present`, in first-seen order.
+   *
+   * Scoped to the workspace and the repository by `documentsByIds`. Zero
+   * enabled agents, or zero attachments, is a normal empty result.
+   */
+  async specsForBrief(
+    workspaceId: string,
+    repoId: string,
+  ): Promise<{ path: string; content: string; tokenCount: number }[]> {
+    const agents = await this.container.agentsRepo.listEnabled(workspaceId);
+    const order: string[] = [];
+    const seen = new Set<string>();
+    for (const agent of agents) {
+      const skillIds = await this.enabledSkillIdsFor(agent.id);
+      const direct = await this.repo.attachedIds('agent', agent.id, repoId);
+      const bySkill = await this.repo.attachmentsForSkills(skillIds, repoId);
+      const entries = mergeEffectiveSet(
+        direct,
+        skillIds.map((id) => bySkill.get(id) ?? []),
+      );
+      for (const entry of entries) {
+        if (seen.has(entry.documentId)) continue;
+        seen.add(entry.documentId);
+        order.push(entry.documentId);
+      }
+    }
+    if (order.length === 0) return [];
+
+    const rows = await this.repo.documentsByIds(workspaceId, repoId, order);
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    const specs: { path: string; content: string; tokenCount: number }[] = [];
+    for (const id of order) {
+      const row = byId.get(id);
+      if (!row || row.category !== 'specs' || row.availability !== 'present') continue;
+      specs.push({ path: row.path, content: row.content, tokenCount: row.tokenCount });
+    }
+    return specs;
+  }
+
+  /**
    * The agent's enabled skill ids, in the user's configured order — the same
    * ordering rule the prompt's skills block uses (sort first, then drop the
    * disabled, so dropping one leaves the survivors' relative order alone).

@@ -16,6 +16,7 @@ import {
   type DiffCommentApi,
   type DiffFindingAnchor,
   type DiffFindingApi,
+  type DiffTarget,
 } from "@/components/diff-viewer";
 import {
   usePrComments,
@@ -39,6 +40,8 @@ interface DiffTabProps {
   canComment?: boolean;
   repoFullName?: string | null;
   headSha?: string | null;
+  /** Deep-link target from the URL (`?file=&line=`): opened, scrolled to, highlighted. */
+  target?: DiffTarget | null;
 }
 
 export function DiffTab({
@@ -48,8 +51,10 @@ export function DiffTab({
   canComment,
   repoFullName,
   headSha,
+  target = null,
 }: DiffTabProps) {
   const t = useTranslations("prReview");
+  const tBrief = useTranslations("brief");
   const { data: comments } = usePrComments(prId);
   const create = useCreatePrComment(prId);
   // Already fetched by the PR page, so this is a cache hit, not a request.
@@ -125,6 +130,8 @@ export function DiffTab({
   const groupingFailed = smartDiff.isError;
   const canGroup = !!smartDiff.data && !groupingFailed;
   const showGrouped = grouped && canGroup;
+  // A blast-map file can be a valid brief target without being in the diff.
+  const targetMissing = !!target && !files.some((f) => f.path === target.file);
 
   return (
     <section>
@@ -170,6 +177,11 @@ export function DiffTab({
         })}
       </div>
       {groupingFailed && <div style={s.degraded}>{t("smartDiff.groupingFailed")}</div>}
+      {targetMissing && (
+        <div role="status" style={s.notInDiff}>
+          {tBrief("notInDiff", { file: target.file })}
+        </div>
+      )}
       {showGrouped ? (
         <SmartDiffGroups
           groups={smartDiff.data!.groups}
@@ -177,9 +189,10 @@ export function DiffTab({
           commenting={commenting}
           findings={findings}
           hasReview={(reviews?.length ?? 0) > 0}
+          target={target}
         />
       ) : (
-        <DiffViewer files={files} commenting={commenting} findings={findings} />
+        <DiffViewer files={files} commenting={commenting} findings={findings} target={target} />
       )}
     </section>
   );

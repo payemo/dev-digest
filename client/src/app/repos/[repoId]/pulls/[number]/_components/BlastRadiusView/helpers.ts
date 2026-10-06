@@ -1,10 +1,9 @@
 /**
- * Pure helpers for BlastRadiusCard. No `react` import — that is the test for
+ * Pure helpers for BlastRadiusView. No `react` import — that is the test for
  * whether something belongs in this file. Deriving lives here; which hook runs
  * and which state is held is the component's job.
  */
-import type { BlastCaller, DownstreamImpact } from "@devdigest/shared";
-import type { PrBlastRadius } from "@/lib/hooks/reviews";
+import type { BlastCaller, BlastRadius, DownstreamImpact } from "@devdigest/shared";
 
 export interface StatCounts {
   symbols: number;
@@ -23,7 +22,7 @@ export interface StatCounts {
  * `endpoints`/`crons` are UNION sizes, not sums: an endpoint reachable from two
  * different changed symbols is one endpoint at risk, not two.
  */
-export function statCounts(data: PrBlastRadius): StatCounts {
+export function statCounts(data: BlastRadius): StatCounts {
   const endpoints = new Set<string>();
   const crons = new Set<string>();
   let callers = 0;
@@ -50,14 +49,14 @@ export function statCounts(data: PrBlastRadius): StatCounts {
  * caller link points at the caller's own file and never at this one.
  */
 export function declaringFileOf(
-  changedSymbols: PrBlastRadius["changed_symbols"],
+  changedSymbols: BlastRadius["changed_symbols"],
   name: string,
 ): string | null {
   return changedSymbols.find((s) => s.name === name)?.file ?? null;
 }
 
 /** True when every changed symbol came back with no callers at all. */
-export function hasNoCallers(data: PrBlastRadius): boolean {
+export function hasNoCallers(data: BlastRadius): boolean {
   return data.downstream.every((entry) => entry.callers.length === 0);
 }
 
@@ -76,7 +75,7 @@ export interface GraphRow {
  * DRAWABLE rows that did not fit.
  */
 export function graphRows(
-  data: PrBlastRadius,
+  data: BlastRadius,
   maxRows: number,
   maxPerColumn: number,
 ): { rows: GraphRow[]; hidden: number } {

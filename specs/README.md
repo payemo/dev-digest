@@ -56,3 +56,4 @@ to `implementation-planner`, which reads this table first.
 |---|---|---|
 | [01-conventions.md](01-conventions.md) | `server/` · `client/` · shared contracts | implemented (2026-09-21) |
 | [02-project-context.md](02-project-context.md) | `server/` · `client/` · `reviewer-core/` · shared contracts | implemented (2026-09-29) |
+| [03-pr-brief.md](03-pr-brief.md) | `server/` · `client/` · shared contracts | draft (2026-09-30) |

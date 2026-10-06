@@ -30,4 +30,21 @@ describe("VerdictBanner (smoke)", () => {
     expect(screen.getByText("42")).toBeInTheDocument();
     expect(screen.getByText(/1 findings · 1 blockers/)).toBeInTheDocument();
   });
+
+  it("with no verdict (a PR Brief before any review), shows only the summary plus its actions", () => {
+    renderWithIntl(
+      <VerdictBanner
+        verdict={null}
+        summary="Adds per-token rate limiting."
+        score={null}
+        actions={<button type="button">Regenerate brief</button>}
+      />,
+    );
+    expect(screen.getByText("Adds per-token rate limiting.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Regenerate brief" })).toBeInTheDocument();
+    for (const label of ["Request changes", "Approve", "Comment", "PR SCORE"]) {
+      expect(screen.queryByText(label)).not.toBeInTheDocument();
+    }
+    expect(screen.queryByText(/findings/)).not.toBeInTheDocument();
+  });
 });

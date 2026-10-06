@@ -25,4 +25,14 @@ export const s = {
     color: "var(--text-muted)",
     marginBottom: 10,
   } satisfies CSSProperties,
+  /** FR-19 — the deep-link target is not a file in this diff. */
+  notInDiff: {
+    fontSize: 12.5,
+    color: "var(--text-secondary)",
+    padding: "8px 12px",
+    marginBottom: 10,
+    borderRadius: 6,
+    border: "1px solid var(--border)",
+    background: "var(--bg-elevated)",
+  } satisfies CSSProperties,
 } as const;

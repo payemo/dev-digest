@@ -22,6 +22,7 @@ Reusable AI skills that provide specialized knowledge and workflows. Canonical l
 | [pr-self-review](pr-self-review/SKILL.md) | Shared | Pre-PR gate — routes the open diff to the skills in this table, blocks on CRITICAL |
 | [sdd](sdd/SKILL.md) | Shared | `/sdd` — runs the full Spec Driven Development pipeline (spec → plan → multi-agent execution → bounded architecture-review fix loop → plan-verifier) |
 | [implement](implement/SKILL.md) | Shared | `/implement` — narrower sibling of `sdd`: runs an existing plan through implementer → review → bounded fix loop → plan-verifier, without spec-creator/implementation-planner or test-writer |
+| [workflow-retro](workflow-retro/SKILL.md) | Shared | `/workflow-retro` — after a pipeline run: per-agent cost, duplicated context, prompt fixes, and a trend row in `docs/retros/ledger.md` |
 
 ## What Are Skills?
 

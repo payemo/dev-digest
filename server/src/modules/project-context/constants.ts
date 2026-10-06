@@ -10,12 +10,30 @@
 export const CONTEXT_ROOT = '.devdigest';
 
 /**
- * The immediate subdirectories of the root that classify a document. A
- * document's category IS its directory, so Markdown directly under the root
- * (e.g. `.devdigest/README.md`) has no category and is deliberately NOT
+ * Directory names that classify a document, wherever they appear in the clone
+ * (`.devdigest/docs/`, `server/specs/`, `a/b/insights/`). A document's category
+ * IS the directory, so Markdown with no such directory above it (a root
+ * `README.md`, `.devdigest/README.md`) has no category and is deliberately NOT
  * discovered — there would be nowhere to render it.
  */
 export const CONTEXT_CATEGORIES = ['specs', 'docs', 'insights'] as const;
+
+/**
+ * Directories the clone-wide scan never enters. Same set the code index skips,
+ * plus `clones` (runtime data) — the scan now starts at the clone root, so
+ * without this a vendored tree would be walked and its docs attached.
+ */
+export const EXCLUDED_SCAN_DIRS: ReadonlySet<string> = new Set([
+  'node_modules',
+  'dist',
+  'build',
+  'coverage',
+  '.next',
+  'out',
+  'vendor',
+  'clones',
+  '.git',
+]);
 
 /** The only extensions discovered or accepted on intake. */
 export const MARKDOWN_EXT = ['.md', '.markdown'] as const;
@@ -37,8 +55,8 @@ export const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Upper bound on directory entries (files and directories both) one scan will
- * visit across all three categories. A DoS bound, not a document limit: it is
- * set far above anything a normal-sized document area reaches, so it only bites
- * when the walk has somehow been pointed at a very large tree.
+ * visit across the whole clone walk. A DoS bound, not a document limit: it is
+ * set far above anything a normal-sized source tree reaches (excluded
+ * directories do not count), so it only bites on a very large tree.
  */
-export const MAX_SCAN_ENTRIES = 10_000;
+export const MAX_SCAN_ENTRIES = 50_000;

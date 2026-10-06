@@ -26,7 +26,7 @@ import {
 } from '../src/modules/project-context/helpers.js';
 import { MAX_DOC_BYTES, STALE_AFTER_MS } from '../src/modules/project-context/constants.js';
 
-describe('classifyDocument — root-only discovery (FR-1, D-5)', () => {
+describe('classifyDocument — specs/docs/insights at any depth', () => {
   it('classifies files under the convention root by their category subfolder', () => {
     expect(classifyDocument('.devdigest/specs/a.md')).toEqual({
       category: 'specs',
@@ -41,9 +41,22 @@ describe('classifyDocument — root-only discovery (FR-1, D-5)', () => {
     expect(classifyDocument('.devdigest/insights/Notes.MD')?.category).toBe('insights');
   });
 
-  it('ignores Markdown outside the root, directly under it, in unknown categories, or non-Markdown', () => {
+  it('finds documentation that lives next to the code, at any depth', () => {
+    expect(classifyDocument('server/docs/api/x.md')).toEqual({
+      category: 'docs',
+      folder: 'server/api',
+      name: 'x.md',
+    });
+    expect(classifyDocument('packages/x/specs/01.md')?.category).toBe('specs');
+    // Outermost category wins.
+    expect(classifyDocument('docs/specs/a.md')?.category).toBe('docs');
+  });
+
+  it('ignores Markdown with no category directory, in excluded or hidden dirs, or non-Markdown', () => {
     expect(classifyDocument('README.md')).toBeNull();
-    expect(classifyDocument('packages/x/docs/y.md')).toBeNull();
+    expect(classifyDocument('packages/x/guides/y.md')).toBeNull();
+    expect(classifyDocument('node_modules/pkg/docs/y.md')).toBeNull();
+    expect(classifyDocument('.github/docs/y.md')).toBeNull();
     expect(classifyDocument('.devdigest/notes.md')).toBeNull();
     expect(classifyDocument('.devdigest/random/a.md')).toBeNull();
     expect(classifyDocument('.devdigest/specs/diagram.png')).toBeNull();

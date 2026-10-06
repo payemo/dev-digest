@@ -10,6 +10,7 @@ import type { ContextDocumentRow } from '../../db/rows.js';
 import {
   CONTEXT_CATEGORIES,
   CONTEXT_ROOT,
+  EXCLUDED_SCAN_DIRS,
   MARKDOWN_EXT,
   MAX_DOC_BYTES,
   STALE_AFTER_MS,
@@ -37,24 +38,39 @@ export interface DocumentClassification {
 /**
  * Classify a repo-relative path, or return `null` when it is not a document.
  *
- * Only `.devdigest/{specs,docs,insights}/**\/*.md` classifies. A repo-root
- * `README.md`, a `packages/x/docs/y.md`, and `.devdigest/notes.md` all return
- * `null`: the immediate subdirectory IS the category, so a file with no
- * category has nowhere to live and is invisible rather than mis-filed.
+ * A Markdown file is a document when some directory above it is named
+ * `specs`, `docs` or `insights`, at any depth — so documentation that already
+ * sits next to the code (`server/docs/x.md`, `client/specs/y.md`) is found as
+ * well as `.devdigest/{specs,docs,insights}/**`. The OUTERMOST such directory
+ * is the category. A repo-root `README.md` has no category directory and
+ * returns `null`, as does anything under a hidden directory other than the
+ * root (`.git`, `.github`, `src/.devdigest`) or an excluded one
+ * (`node_modules`, `dist`, …).
+ *
+ * `folder` is the path between the repo and the file with the root and the
+ * category segment removed, so `server/docs/api/x.md` is folder `server/api`
+ * and `.devdigest/docs/api/x.md` is folder `api`.
  */
 export function classifyDocument(relPath: string): DocumentClassification | null {
   const segments = relPath.split('/').filter((seg) => seg.length > 0);
-  // root + category + at least a file name.
-  if (segments.length < 3) return null;
-  if (segments[0] !== CONTEXT_ROOT) return null;
-  const category = segments[1]!;
-  if (!CATEGORY_SET.has(category)) return null;
+  if (segments.length < 2) return null;
 
   const name = segments[segments.length - 1]!;
   if (!MARKDOWN_SET.has(extLower(name))) return null;
 
-  const folder = segments.slice(2, -1).join('/');
-  return { category: category as ContextDocumentCategory, folder, name };
+  const dirs = segments.slice(0, -1);
+  // Only the convention root may be hidden, and only as the first segment.
+  const hidden = dirs.findIndex((seg, i) => seg.startsWith('.') && !(i === 0 && seg === CONTEXT_ROOT));
+  if (hidden !== -1) return null;
+  if (dirs.some((seg) => EXCLUDED_SCAN_DIRS.has(seg))) return null;
+
+  const at = dirs.findIndex((seg) => CATEGORY_SET.has(seg));
+  if (at === -1) return null;
+
+  const folder = dirs
+    .filter((seg, i) => i !== at && !(i === 0 && seg === CONTEXT_ROOT))
+    .join('/');
+  return { category: dirs[at] as ContextDocumentCategory, folder, name };
 }
 
 export interface SafePathResult {
