@@ -31,6 +31,8 @@ export interface Result {
 export interface RunOptions {
   systemPrompt?: string;
   allowedTools?: string[];
+  /** Tools removed from the model's context outright — a hard deny, unlike allowedTools. */
+  disallowedTools?: string[];
   maxTurns?: number;
   cwd?: string;
   model?: string;
@@ -62,9 +64,13 @@ export async function runClaude(prompt: string, opts: RunOptions = {}): Promise<
   const options: Options = {
     model: opts.model ?? EVAL_MODEL,
     maxTurns: opts.maxTurns ?? MAX_TURNS,
-    permissionMode: "bypassPermissions", // safe: evals only read/plan and tools are allow-listed
+    permissionMode: "bypassPermissions", // safe only because `tools` hard-limits the set (see below)
     systemPrompt,
     allowedTools,
+    // allowedTools only AUTO-APPROVES; under bypassPermissions the model could still call Bash/Write.
+    // `tools` is what actually restricts the available set (the SDK says so), disallowedTools removes.
+    tools: allowedTools,
+    disallowedTools: opts.disallowedTools,
     cwd: opts.cwd ?? REPO_ROOT,
     // Default: do NOT load on-disk config — isolates the injected artifact. workflowTask overrides.
     settingSources: opts.settingSources ?? [],

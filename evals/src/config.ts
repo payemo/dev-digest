@@ -26,6 +26,8 @@ export const COST_REGRESSION_RATIO = 1.25; // candidate mean tokens > 125% of ba
 export const SPAWN_TOOLS = new Set(["Task", "Agent"]);
 // workflowTask runs against the LIVE repo with bypassPermissions — keep this read-only.
 export const WORKFLOW_ALLOWED_TOOLS = ["Read", "Grep", "Glob", "Task", "Agent", "Skill"];
+// Belt and braces: removed from the model's context even if some path would otherwise expose them.
+export const WORKFLOW_DISALLOWED_TOOLS = ["Bash", "Write", "Edit", "NotebookEdit"];
 
 // --- Output verbosity -------------------------------------------------------
 // Set EVAL_QUIET to suppress per-run trace/verdict spam during multi-run aggregation.

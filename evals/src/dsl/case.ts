@@ -9,7 +9,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect } from "vitest";
-import { DEFAULT_THRESHOLD } from "../config.js";
+import { DEFAULT_THRESHOLD, WORKFLOW_DISALLOWED_TOOLS } from "../config.js";
 import { skillTask, agentTask, workflowTask } from "../tasks.js";
 import { runClaude, type Result, type RunOptions } from "../runtime/run-claude.js";
 import { patternMatch } from "../scoring/pattern-match.js";
@@ -65,6 +65,8 @@ export type WorkflowCase =
       expectSubagents?: string[];
       expectSkills?: string[];
       expectFilesRead?: string[];
+      /** Substrings (case-insensitive) that must ALL appear in the final answer. Disables early-stop. */
+      expectText?: string[];
       maxTurns?: number;
     };
 
@@ -149,15 +151,19 @@ export function runWorkflowCases(cases: WorkflowCase[]): void {
         const subs = c.expectSubagents ?? [];
         const skls = c.expectSkills ?? [];
         const files = c.expectFilesRead ?? [];
+        const texts = c.expectText ?? [];
         const skillEngaged = (p: { skillsInvoked: string[]; filesRead: string[] }, skill: string) =>
           p.skillsInvoked.some((s) => s === skill || s.endsWith(`:${skill}`)) ||
           p.filesRead.some((f) => f.includes(`skills/${skill}/SKILL.md`));
         const result = await workflowTask(c.prompt, {
           maxTurns: c.maxTurns,
-          stopWhen: (p) =>
-            subs.every((s) => p.subagents.includes(s)) &&
-            skls.every((s) => skillEngaged(p, s)) &&
-            files.every((f) => p.filesRead.some((r) => r.includes(f))),
+          // The final answer only exists once the session ends, so expectText rules out early-stop.
+          stopWhen: texts.length
+            ? undefined
+            : (p) =>
+                subs.every((s) => p.subagents.includes(s)) &&
+                skls.every((s) => skillEngaged(p, s)) &&
+                files.every((f) => p.filesRead.some((r) => r.includes(f))),
         });
         logTrace(c.name, result);
         try {
@@ -176,6 +182,9 @@ export function runWorkflowCases(cases: WorkflowCase[]): void {
               `${file} not read | reads: ${result.filesRead.join(", ")}`,
             ).toBe(true);
           }
+          for (const t of texts) {
+            expect(result.text.toLowerCase().includes(t.toLowerCase()), `"${t}" missing from answer:\n${result.text}`).toBe(true);
+          }
           expect(result.isError).toBe(false);
         } finally {
           record(c.name, { result });
@@ -187,6 +196,7 @@ export function runWorkflowCases(cases: WorkflowCase[]): void {
         const emptyCwd = mkdtempSync(join(tmpdir(), "eval-control-"));
         const control = await runClaude(c.prompt, {
           allowedTools: tools,
+          disallowedTools: WORKFLOW_DISALLOWED_TOOLS,
           maxTurns: c.maxTurns,
           cwd: emptyCwd,
           settingSources: [],

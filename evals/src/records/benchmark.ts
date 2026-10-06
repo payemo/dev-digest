@@ -71,7 +71,9 @@ const cell = (s: Stats) => `${s.mean.toFixed(0)} ± ${s.stddev.toFixed(0)} [${s.
 
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
-  let times = 5;
+  // Token economy: same hard cap as eval:repeat. Bump MAX_TIMES only for a deliberate fuller run.
+  const MAX_TIMES = 2;
+  let times = MAX_TIMES;
   let label: string | undefined;
   const vitestArgs: string[] = [];
   for (let i = 0; i < argv.length; i++) {
@@ -83,6 +85,10 @@ async function main(): Promise<void> {
   if (vitestArgs.length === 0 || !Number.isFinite(times) || times < 1) {
     console.error("usage: pnpm eval:benchmark <vitest pattern> [-n runs] [--label name]");
     process.exit(1);
+  }
+  if (times > MAX_TIMES) {
+    console.error(`  ${DIM}capping -n ${times} → ${MAX_TIMES} (token economy)${RESET}`);
+    times = MAX_TIMES;
   }
   if (vitestArgs.some((a) => a.includes("workflow"))) {
     console.error(

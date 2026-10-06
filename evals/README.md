@@ -421,10 +421,10 @@ pnpm vitest run src/records/stats.test.ts       # the only non-model unit test (
 ### `eval:repeat` — stability of one thing
 
 ```bash
-pnpm eval:repeat <vitest pattern> [-n times=5] [-t testNamePattern] [--label name]
-pnpm eval:repeat skills/onion-architecture -n 5 --label baseline
+pnpm eval:repeat <vitest pattern> [-n times<=2] [-t testNamePattern] [--label name]
+pnpm eval:repeat skills/onion-architecture -n 2 --label baseline
 ```
-Runs the pattern N times, then prints per-test pass rate, a per-**practice** table
+Runs the pattern N times (hard-capped at 2 — token economy; `eval:benchmark` is capped the same way), then prints per-test pass rate, a per-**practice** table
 (`passed/total (pct)`), and metric stats (`turns`, `duration_ms`, `tokens_out` as mean ± stddev;
 n<5 prints an "indicative only" caveat). `--label` saves the aggregate to
 `results/repeat-<label>.json` for delta.
@@ -435,9 +435,9 @@ The primary "before vs after a change" workflow. **Capture the baseline label BE
 there is no way to reconstruct it afterwards short of reverting.
 
 ```bash
-pnpm eval:repeat skills/onion-architecture -n 5 --label baseline   # BEFORE the edit
+pnpm eval:repeat skills/onion-architecture -n 2 --label baseline   # BEFORE the edit
 #   ...edit SKILL.md...
-pnpm eval:repeat skills/onion-architecture -n 5 --label candidate  # AFTER the edit
+pnpm eval:repeat skills/onion-architecture -n 2 --label candidate  # AFTER the edit
 pnpm eval:delta baseline candidate
 ```
 Shows the delta at three levels: per-test pass rate, per-**practice** (which practice
@@ -448,8 +448,8 @@ improved, red = regressed, dim = unchanged. A practice on one side only renders 
 
 ```bash
 pnpm eval:benchmark <vitest pattern> [-n runs=5]
-pnpm eval:benchmark skills/engineering-insights -n 5    # a skill
-pnpm eval:benchmark agents/architecture-reviewer -n 5   # an agent
+pnpm eval:benchmark skills/engineering-insights -n 2    # a skill
+pnpm eval:benchmark agents/architecture-reviewer -n 2   # an agent
 ```
 
 **candidate vs baseline** — the whole idea. The benchmark runs the *same test case* in two
@@ -564,7 +564,7 @@ tokens > 125% of baseline), `missing_data` (a config has zero records for a test
 | `CLAUDE.md` / activation / dispatch | `pnpm eval:workflow` |
 | Any artifact's structure | `pnpm eval:quality` |
 | A `SKILL.md` edit you want to **measure** | repeat/delta loop: `--label baseline` before, `--label candidate` after, then `eval:delta` |
-| New skill/agent — is it **worth its tokens**? | `pnpm eval:benchmark skills/<skill> -n 5` |
+| New skill/agent — is it **worth its tokens**? | `pnpm eval:benchmark skills/<skill> -n 2` |
 | Adding evals for one of **your** skills/agents | `pnpm eval:scaffold <name>` (or `--agent <name>`) |
 | Model / Claude Code version | `pnpm eval` (whole suite) |
 | Stats math changed | `pnpm vitest run src/records/stats.test.ts` |
