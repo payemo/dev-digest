@@ -1,0 +1,23 @@
+{
+  "skill_name": "onion-architecture",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I'm adding a small 'PR notes' feature to the DevDigest backend (server/, Fastify + Drizzle). The new module is in .claude/skills/onion-architecture/evals/fixtures/pr-notes/server/src/modules/pr-notes/. Review the module's five files for architectural layering problems — what is in the wrong layer or imports something it shouldn't. For each problem give file:line, severity, why it's wrong and the fix. Don't edit the fixture files.",
+      "expected_output": "Finds: SQL/drizzle in routes.ts; Octokit SDK imported/constructed in service.ts instead of via a GitHub port; repository.ts takes Container instead of Db. Helpers/constants not flagged.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Here's a new 'finding labels' module for the DevDigest backend (server/): .claude/skills/onion-architecture/evals/fixtures/finding-labels/server/src/modules/finding-labels/ plus its contract at .claude/skills/onion-architecture/evals/fixtures/finding-labels/server/src/vendor/shared/contracts/finding-labels.ts. Do a layering/boundary review of these files and tell me what to change, with file:line, severity and a fix for each issue. Don't edit the fixture files.",
+      "expected_output": "Finds: helpers.ts imports drizzle-orm/db schema at runtime (not pure, not type-only); raw DB row returned through service+route (no DTO mapping); shared contract imports db/schema. repository.ts not flagged.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Review this backend change for DevDigest — a severity floor policy touching reviewer-core and server/. Files under .claude/skills/onion-architecture/evals/fixtures/severity-policy/ (reviewer-core/src/review/severity.ts and server/src/modules/severity-policy/*). Look at layering, dependency direction and test conventions. Give file:line, severity, reason and fix for each issue. Don't edit the fixture files.",
+      "expected_output": "Finds: reviewer-core reads process.env and filesystem (core impurity); service takes FastifyRequest/uses req (HTTP in service); DB-backed policy.test.ts not named *.it.test.ts. routes.ts and repository.ts not flagged.",
+      "files": []
+    }
+  ]
+}

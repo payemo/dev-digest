@@ -1,3 +1,6 @@
 node_modules/
 results/
 *.tsbuildinfo
+
+# skill-creator run output (local; regenerate with the skill-creator loop)
+skills/*/workspace/
