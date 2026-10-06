@@ -186,7 +186,34 @@ workflow cases:
 > checkout is disposable); locally, prefer the Anthropic path or a throwaway clone for the workflow
 > tier.
 
-### Wiring it into GitHub Actions (per-PR)
+### GitHub Actions — `.github/workflows/evals.yml` (ready-made)
+
+The repo ships the workflow. On a PR it diffs against the base branch and
+`scripts/ci-detect.mjs` picks what to run:
+
+| PR changes | Runs |
+|---|---|
+| `.claude/skills/<n>/**` or `evals/skills/<n>/**` | `evals/skills/<n>` (content tier, no proxy) |
+| `.claude/agents/<n>.md` or `evals/agents/<n>/**` | `evals/agents/<n>` **and** the workflow tier |
+| any `CLAUDE.md`, `evals/workflow/**`, `evals/src/**` | workflow tier |
+
+An artifact with no vitest evals (or whose evals lost their `.claude/` artifact) is **skipped, not
+failed** — see the `SKIP …` lines in the `detect` step and on the run summary. Note that
+`skill-creator`-style `evals/evals.json` inside a skill folder is *not* a vitest eval, so such a skill
+counts as "no evals".
+
+**Models** (first non-empty wins: manual-run input → repo variable → default):
+
+| Tier | Repo variable | Default |
+|---|---|---|
+| skills + agents | `EVAL_MODEL` | `deepseek/deepseek-v4-flash` |
+| workflow | `EVAL_WORKFLOW_MODEL` | `google/gemini-2.5-flash` |
+| LLM judge | `EVAL_JUDGE_MODEL` | `google/gemini-2.5-flash` |
+
+Needs the `OPENROUTER_API_KEY` Actions secret. Fork PRs have no secrets and are skipped. A manual run
+(Actions → evals → *Run workflow*, `scope=all`) executes every artifact that has evals.
+
+### Wiring it into GitHub Actions by hand
 
 The engine is CI-ready: bring the proxy up as a step, wait for it, run the tier, tear it down. Put
 the OpenRouter key in the repo's **Actions secrets** as `OPENROUTER_API_KEY` (Settings → Secrets and
