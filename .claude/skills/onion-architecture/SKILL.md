@@ -308,6 +308,88 @@ add a new query to them.
 
 ---
 
+## 11. Modules don't reach into each other (HIGH)
+
+A module is a vertical slice: its `routes.ts`, `service.ts` and `repository.ts`
+are private to it. Reaching across slices couples two domains' persistence and
+makes the import graph un-layerable.
+
+- **Never import another module's `repository.ts` or `repository/*`.**
+  `depcruise` reports it as `no-cross-module-repository`. If two modules need
+  the same data, the repository is built in the container
+  (`container.agentsRepo`, `container.reviewRepo`) and handed in, or the shared
+  row type moves to [`db/rows.ts`](../../../server/src/db/rows.ts).
+- **Don't import another module's `service.ts` or `routes.ts` either.** Share a
+  pure function through that module's `helpers.ts`/`constants.ts`, or extract it
+  to `platform/` when it is genuinely cross-cutting. Two services calling each
+  other is how a cycle gets in.
+- **Why:** a repository is the one place that knows a table's shape and scope
+  rules (§3). A second module querying through it bypasses the owning service's
+  business rules.
+
+## 12. Failure is a typed `AppError` (MEDIUM)
+
+[`platform/errors.ts`](../../../server/src/platform/errors.ts) is the error
+taxonomy (`NotFoundError`, `ValidationError`, `ConflictError`,
+`ExternalServiceError`), and the app's error handler turns each into the
+`{ error: { code, message, details } }` envelope with the right status.
+
+- **Services and helpers throw these**, never `new Error(...)` and never a
+  status code. A bare `Error` surfaces as an opaque 500, and a status code in a
+  service is HTTP leaking inward (§2).
+- **Routes don't catch to re-map.** Let the typed error propagate to the handler.
+
+## 13. Configuration enters through one door (HIGH)
+
+`process.env` is read in exactly two places: `platform/config.ts` (env →
+`AppConfig`) and `adapters/secrets/` (secrets, with env as fallback). Everything
+else receives values by injection.
+
+- **No `process.env` in `modules/**`, `db/**` or `vendor/shared/**`.** A service
+  that needs a limit reads it from `container.config`; one that needs a secret
+  asks `container.secrets`. Reading the environment inline makes the use case
+  untestable without mutating global state and hides a config key from
+  `AppConfig`.
+- Secrets never go in `AppConfig` (root CLAUDE.md) — `SecretsProvider` only.
+
+---
+
+## 14. Background work goes through the JobRunner (HIGH)
+
+Anything slow or retryable (clone, index, digest build) runs on `container.jobs`
+([`platform/jobs.ts`](../../../server/src/platform/jobs.ts)): a concurrency-limited
+queue mirrored into the `jobs` table with timeout and retry. That is the only
+reason a failed run is visible and resumable.
+
+- **Register the handler once, in the service constructor**, keyed by a kind
+  constant from `constants.ts` (`CLONE_JOB_KIND` in
+  [`repos/service.ts`](../../../server/src/modules/repos/service.ts)). Registering
+  inside a method re-registers on every call and silently replaces the handler.
+- **Enqueue from the service**, never from `routes.ts`. The route calls a service
+  method; the service decides what runs async. A route that calls
+  `container.jobs.enqueue(...)` has put a use-case decision in the edge (§1).
+  `repo-intel/routes.ts` does this today — don't copy it.
+- **No bare string kinds** (`'digest.build'`) at call sites; they drift from the
+  registration and nothing type-checks the match.
+- **Payloads are plain JSON.** The job may run after the request is gone, so the
+  handler never captures `req`/`reply` or a per-request object.
+
+## 15. Prompts live in files; models come from settings (MEDIUM)
+
+- **System prompts are Markdown in
+  [`server/src/prompts/`](../../../server/src/prompts)**, loaded with
+  `loadPromptTemplate` from `platform/prompts` and named by a constant
+  (`BRIEF_SYSTEM_PROMPT_FILE`). A service never holds a multi-line prompt string:
+  it can't be reviewed or versioned as a prompt, and it bypasses the injection
+  guard that wraps every system prompt.
+- **The model call goes through the port**: `container.llm(provider)`.
+- **The model/provider choice is `resolveFeatureModel`**
+  (`modules/settings/feature-models.ts`). Importing it from another module is the
+  accepted shared lookup, not a §11 violation — it is a function, not that
+  module's repository or service.
+
+---
+
 ## Review checklist
 
 - [ ] No `drizzle-orm` / `db/schema` import in a `routes.ts` or `service.ts`
@@ -321,6 +403,11 @@ add a new query to them.
 - [ ] `reviewer-core` and `contracts/` still import nothing but zod and ports
 - [ ] `getContext` called on every authenticated route
 - [ ] DB-backed test named `*.it.test.ts`
+- [ ] No import of another module's `repository`, `service` or `routes`
+- [ ] Services throw `platform/errors` types — no bare `Error`, no status codes
+- [ ] Job handler registered once in the service constructor; `jobs.enqueue` only from a service, with a kind constant
+- [ ] System prompt is a `src/prompts/*.md` file via `loadPromptTemplate`, not an inline string
+- [ ] No `process.env` outside `platform/config.ts` and `adapters/secrets/`
 - [ ] `pnpm exec depcruise src --config .dependency-cruiser.cjs` passes
 
 See [examples.md](examples.md) for each of these as a before/after from real
