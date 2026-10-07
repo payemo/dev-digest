@@ -19,6 +19,7 @@ Reusable AI skills that provide specialized knowledge and workflows. Canonical l
 | [security](security/SKILL.md) | Full-stack | OWASP Top 10:2025, auth, injection, uploads, secrets |
 | [mermaid-diagram](mermaid-diagram/SKILL.md) | Shared | Mermaid diagrams in markdown (flowcharts, sequence, ERD, …) |
 | [engineering-insights](engineering-insights/SKILL.md) | Shared | Capture a non-obvious finding into the right package's INSIGHTS.md |
+| [dependency-checker](dependency-checker/SKILL.md) | Shared | `/dependency-checker` — read-only audit of every package's deps: Mermaid map, size per package, hygiene findings, prioritised P0–P3 actions |
 | [pr-self-review](pr-self-review/SKILL.md) | Shared | Pre-PR gate — routes the open diff to the skills in this table, blocks on CRITICAL |
 | [sdd](sdd/SKILL.md) | Shared | `/sdd` — runs the full Spec Driven Development pipeline (spec → plan → multi-agent execution → bounded architecture-review fix loop → plan-verifier) |
 | [implement](implement/SKILL.md) | Shared | `/implement` — narrower sibling of `sdd`: runs an existing plan through implementer → review → bounded fix loop → plan-verifier, without spec-creator/implementation-planner or test-writer |

@@ -1,0 +1,43 @@
+{
+  "skill_name": "onion-architecture",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I'm adding a small 'PR notes' feature to the DevDigest backend (server/, Fastify + Drizzle). The new module is in .claude/skills/onion-architecture/evals/fixtures/pr-notes/server/src/modules/pr-notes/. Review the module's five files for architectural layering problems — what is in the wrong layer or imports something it shouldn't. For each problem give file:line, severity, why it's wrong and the fix. Don't edit the fixture files.",
+      "expected_output": "Finds: SQL/drizzle in routes.ts; Octokit SDK imported/constructed in service.ts instead of via a GitHub port; repository.ts takes Container instead of Db. Helpers/constants not flagged.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Here's a new 'finding labels' module for the DevDigest backend (server/): .claude/skills/onion-architecture/evals/fixtures/finding-labels/server/src/modules/finding-labels/ plus its contract at .claude/skills/onion-architecture/evals/fixtures/finding-labels/server/src/vendor/shared/contracts/finding-labels.ts. Do a layering/boundary review of these files and tell me what to change, with file:line, severity and a fix for each issue. Don't edit the fixture files.",
+      "expected_output": "Finds: helpers.ts imports drizzle-orm/db schema at runtime (not pure, not type-only); raw DB row returned through service+route (no DTO mapping); shared contract imports db/schema. repository.ts not flagged.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Review this backend change for DevDigest — a severity floor policy touching reviewer-core and server/. Files under .claude/skills/onion-architecture/evals/fixtures/severity-policy/ (reviewer-core/src/review/severity.ts and server/src/modules/severity-policy/*). Look at layering, dependency direction and test conventions. Give file:line, severity, reason and fix for each issue. Don't edit the fixture files.",
+      "expected_output": "Finds: reviewer-core reads process.env and filesystem (core impurity); service takes FastifyRequest/uses req (HTTP in service); DB-backed policy.test.ts not named *.it.test.ts. routes.ts and repository.ts not flagged.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "Review the new 'review exports' backend module in .claude/skills/onion-architecture/evals/fixtures/review-exports/server/src/modules/review-exports/ (DevDigest server/, Fastify + Drizzle) for architecture and layering problems. Give file:line, severity, why it's wrong and the fix for each. Don't edit the fixture files.",
+      "expected_output": "Finds: service.ts imports another module's repository (reviews/repository.js); service.ts throws bare new Error instead of a platform/errors AppError (NotFoundError); service.ts reads process.env instead of container.config. routes/helpers/repository/constants not flagged.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "We're adding a weekly 'digest' feature to the DevDigest backend (server/, Fastify + Drizzle): the module is in .claude/skills/onion-architecture/evals/fixtures/digest/server/src/modules/digest/ (constants, helpers, prompt, repository, routes, service). Do an architecture and layering review of the module. For each real problem give file:line, severity, why it's wrong and the fix; do not pad the list with style nits. Don't edit the fixture files.",
+      "expected_output": "Finds 4: route enqueues job; handler registered per request; inline system prompt; raw fetch to Slack. No flags on resolveFeatureModel, helpers/prompt/repository/constants.",
+      "files": [],
+      "assertions": [
+        "Flags routes.ts enqueueing the digest job directly via container.jobs.enqueue (job scheduling belongs in the service, not the route)",
+        "Flags service.ts registering the job handler inside requestBuild (per call) instead of once in the constructor",
+        "Flags service.ts holding the system prompt as an inline string instead of a src/prompts/*.md file loaded via loadPromptTemplate",
+        "Flags service.ts calling fetch() on the Slack webhook directly instead of going through a port/adapter",
+        "Does not flag the resolveFeatureModel import from ../settings/feature-models.js as a cross-module violation",
+        "Does not flag helpers.ts, prompt.ts, repository.ts or constants.ts as layering violations (type-only row import and Container in the service constructor are allowed)"
+      ]
+    }
+  ]
+}
