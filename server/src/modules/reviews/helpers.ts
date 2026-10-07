@@ -80,7 +80,7 @@ export function reviewToDto(
  * The TRUSTED part (ours) states the task and the non-negotiable rule: review
  * the whole diff and never withhold a security/correctness finding.
  */
-export function taskLine(pull: PullRow): string {
+export function taskLine(pull: Pick<PullRow, 'number' | 'title' | 'author'>): string {
   return (
     `Review pull request #${pull.number} "${pull.title}" by ${pull.author}. ` +
     `Report only the distinct, high-value findings you can defend, each citing an exact ` +

@@ -14,6 +14,8 @@ import reviews from './reviews/routes.js';
 import repoIntel from './repo-intel/routes.js';
 import projectContext from './project-context/routes.js';
 import brief from './brief/routes.js';
+// `eval` is not a valid ESM binding name, hence `evals`.
+import evals from './eval/routes.js';
 
 /**
  * Module registry. Each feature module is a Fastify plugin in
@@ -44,4 +46,5 @@ export const modules: Record<string, FastifyPluginAsync> = {
   repoIntel,
   projectContext,
   brief,
+  evals,
 };

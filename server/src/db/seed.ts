@@ -9,6 +9,7 @@ import {
   TEST_QUALITY_REVIEWER_PROMPT,
   API_CONTRACT_REVIEWER_PROMPT,
 } from './seed-prompts.js';
+import { seedEvalDemo } from './seed-eval.js';
 
 /** Default provider/model for the built-in reviewer agents. */
 const DEFAULT_PROVIDER = 'openrouter' as const;
@@ -25,8 +26,9 @@ const DEFAULT_MODEL = 'deepseek/deepseek-v4-flash';
  * agent_skills links for the two newest agents — all on the default
  * openrouter/deepseek-v4-flash provider+model.
  *
- * Course lessons populate the remaining tables (conventions, memory, eval, …)
- * once their features are built — they start empty here.
+ * Plus the L06 eval demo (./seed-eval.ts): PR #491 with stored patches and an
+ * accepted + a dismissed Security Reviewer finding, and an 8-case Security
+ * Reviewer eval set. Other lesson tables (conventions, memory, …) start empty.
  */
 
 export const DEFAULT_WORKSPACE_NAME = 'default';
@@ -361,6 +363,9 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
 
   // ---- a couple of extra demo PRs, for list variety ----
   await seedExtraDemoPrs(db, workspaceId, repoId, agentIdByName);
+
+  // ---- L06 eval demo: PR #491 (real patches) + the Security Reviewer set ----
+  await seedEvalDemo(db, workspaceId, repoId, agentIdByName);
 
   return { workspaceId, userId };
 }

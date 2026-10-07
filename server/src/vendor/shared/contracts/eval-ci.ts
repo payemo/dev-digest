@@ -1,92 +1,305 @@
 import { z } from 'zod';
 import { Verdict, Finding } from './findings.js';
-import { EvalRun, EvalOwnerKind, Conformance, Provider, CiFailOn } from './knowledge.js';
+import {
+  Agent,
+  Conformance,
+  Provider,
+  CiFailOn,
+  EvalCase,
+  EvalCaseStatus,
+  EvalExpectationKind,
+  EvalExpectedFinding,
+  EvalInputFile,
+  EvalLocation,
+  EvalPrMeta,
+  EvalRunStatus,
+  EvalSkillSnapshotEntry,
+  EvalSourceDecision,
+} from './knowledge.js';
 
 /**
  * A4 — Eval / CI / Compose / Conformance API contracts (L06).
  *
- * These EXTEND the barrel; they do not modify existing contract files. The base
- * `EvalRun`, `EvalCase`, `EvalOwnerKind`, `Conformance` live in `knowledge.ts`;
- * here we add the *API-facing* request/response shapes (records persisted in
- * `eval_runs`, `composed_reviews`, `ci_installations`, `ci_runs`,
- * `conformance_checks`) plus the eval-dashboard aggregate.
+ * The base eval shapes (`EvalCase`, `EvalExpectedFinding`, `EvalLocation`,
+ * `EvalSkillSnapshotEntry`, …) live in `knowledge.ts`; here are the
+ * *API-facing* request/response shapes: case input/seed/record, per-case
+ * results (`eval_runs`), agent-wide runs (`eval_agent_runs`), the per-agent
+ * detail + workspace dashboard aggregates, compare and promote. Also the
+ * compose / CI / conformance records.
  */
 
 // ===========================================================================
-// Eval — case input + persisted run record + dashboard
+// Eval — cases
 // ===========================================================================
 
-/** Create/update payload for an eval case (id + owner resolved by the route). */
-export const EvalCaseInput = z.object({
-  owner_kind: EvalOwnerKind,
-  owner_id: z.string(),
-  name: z.string().min(1),
-  input_diff: z.string().default(''),
-  input_files: z.unknown().nullish(),
-  input_meta: z.unknown().nullish(),
-  expected_output: z.unknown(),
-  notes: z.string().nullish(),
-});
-export type EvalCaseInput = z.infer<typeof EvalCaseInput>;
+/** A metric in `[0,1]`, or `null` = not applicable (zero denominator). */
+const EvalMetric = z.number().min(0).max(1).nullable();
 
-/** A persisted eval run row (one execution of a case), returned by the API. */
-export const EvalRunRecord = z.object({
+/**
+ * Create/update payload for an agent-owned eval case. The owner comes from the
+ * route. Kind rules: `must_find` needs ≥ 1 expected finding and no forbidden
+ * location; `must_not_flag` needs an empty expected output.
+ */
+export const EvalCaseInput = z
+  .object({
+    name: z.string().trim().min(1, 'Name is required').max(120),
+    kind: EvalExpectationKind,
+    input_diff: z.string().min(1, 'A diff is required'),
+    input_files: z.array(EvalInputFile).default([]),
+    input_meta: EvalPrMeta,
+    expected_output: z.array(EvalExpectedFinding),
+    forbidden_location: EvalLocation.nullish(),
+    notes: z.string().nullish(),
+  })
+  .superRefine((v, ctx) => {
+    if (v.kind === 'must_find') {
+      if (v.expected_output.length < 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['expected_output'],
+          message: 'A must_find case needs at least one expected finding',
+        });
+      }
+      if (v.forbidden_location) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['forbidden_location'],
+          message: 'A must_find case has no forbidden location',
+        });
+      }
+    } else if (v.expected_output.length !== 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['expected_output'],
+        message: 'A must_not_flag case must have an empty expected output',
+      });
+    }
+  });
+export type EvalCaseInput = z.infer<typeof EvalCaseInput>;
+/** Caller-facing input type — `.default()` fields stay optional (web hooks). */
+export type EvalCaseInputBody = z.input<typeof EvalCaseInput>;
+
+/** Overrides for `POST /findings/:id/eval-case`. The input is always re-frozen server-side. */
+export const EvalCaseFromFindingInput = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+  notes: z.string().optional(),
+  expected_output: z.array(EvalExpectedFinding).optional(),
+});
+export type EvalCaseFromFindingInput = z.infer<typeof EvalCaseFromFindingInput>;
+
+/** One case execution's result — a row of a full run, or a single-case run (`suite_run_id` null). */
+export const EvalCaseResult = z.object({
   id: z.string(),
-  case_id: z.string(),
-  case_name: z.string().nullish(),
+  case_id: z.string().nullable(),
+  case_name: z.string(),
+  case_kind: EvalExpectationKind,
+  suite_run_id: z.string().nullable(),
+  agent_version: z.number().int(),
+  status: EvalCaseStatus,
+  reason: z.string().nullable(),
+  emitted: z.number().int(),
+  grounded: z.number().int(),
+  expected_n: z.number().int(),
+  got_m: z.number().int(),
+  /** Indexes into the case's `expected_output` that were matched. */
+  matched: z.array(z.number().int()),
+  findings: z.array(Finding),
+  duration_ms: z.number().int(),
+  cost_usd: z.number().nullable(),
   ran_at: z.string(),
-  actual_output: z.unknown(),
-  pass: z.boolean().nullable(),
+});
+export type EvalCaseResult = z.infer<typeof EvalCaseResult>;
+
+/** A case as listed in the Evals tab: the case + its last result + whether its source finding still exists. */
+export const EvalCaseRecord = EvalCase.extend({
+  last_result: EvalCaseResult.nullable(),
+  source_available: z.boolean(),
+});
+export type EvalCaseRecord = z.infer<typeof EvalCaseRecord>;
+
+/** `GET /findings/:id/eval-case` — the seeded draft, or the case already made from this finding. */
+export const EvalCaseSeed = z.object({
+  decision: EvalSourceDecision,
+  existing: EvalCaseRecord.nullable(),
+  draft: EvalCaseInput,
+});
+export type EvalCaseSeed = z.infer<typeof EvalCaseSeed>;
+
+// ===========================================================================
+// Eval — runs
+// ===========================================================================
+
+/** Wire form of a pinned skill — the rendered prompt text stays server-side. */
+export const EvalSkillSnapshotItem = EvalSkillSnapshotEntry.omit({ rendered: true });
+export type EvalSkillSnapshotItem = z.infer<typeof EvalSkillSnapshotItem>;
+
+/** An agent-wide eval run, pinned to an agent version + skill snapshot + case set. */
+export const EvalAgentRun = z.object({
+  id: z.string(),
+  agent_id: z.string(),
+  agent_version: z.number().int(),
+  provider: z.string().nullable(),
+  model: z.string(),
+  status: EvalRunStatus,
+  skill_snapshot: z.array(EvalSkillSnapshotItem),
+  case_ids: z.array(z.string()),
+  cases_total: z.number().int(),
+  cases_done: z.number().int(),
+  passed: z.number().int(),
+  errored: z.number().int(),
+  recall: EvalMetric,
+  precision: EvalMetric,
+  citation_accuracy: EvalMetric,
+  cost_usd: z.number().nullable(),
+  duration_ms: z.number().int().nullable(),
+  started_at: z.string(),
+  finished_at: z.string().nullable(),
+  error: z.string().nullable(),
+});
+export type EvalAgentRun = z.infer<typeof EvalAgentRun>;
+
+export const EvalAgentRunDetail = EvalAgentRun.extend({
+  results: z.array(EvalCaseResult),
+});
+export type EvalAgentRunDetail = z.infer<typeof EvalAgentRunDetail>;
+
+/** `POST /agents/:id/eval/runs` — the started run, or the in-flight one re-attached to. */
+export const EvalStartResult = z.object({
+  run: EvalAgentRun,
+  attached: z.boolean(),
+});
+export type EvalStartResult = z.infer<typeof EvalStartResult>;
+
+export const EvalRunAllResult = z.object({
+  runs: z.array(EvalStartResult),
+});
+export type EvalRunAllResult = z.infer<typeof EvalRunAllResult>;
+
+// ===========================================================================
+// Eval — detail, dashboard
+// ===========================================================================
+
+export const EvalMetricTriple = z.object({
   recall: z.number().nullable(),
   precision: z.number().nullable(),
   citation_accuracy: z.number().nullable(),
-  duration_ms: z.number().int().nullable(),
-  cost_usd: z.number().nullable(),
 });
-export type EvalRunRecord = z.infer<typeof EvalRunRecord>;
+export type EvalMetricTriple = z.infer<typeof EvalMetricTriple>;
 
-/** Result of running a single case: the metrics (EvalRun) + the persisted row id. */
-export const EvalRunResult = z.object({
-  run_id: z.string(),
-  case_id: z.string(),
-  result: EvalRun,
-});
-export type EvalRunResult = z.infer<typeof EvalRunResult>;
-
-/** One point on the dashboard trend (per run, chronological). */
+/** One point on a trend (one completed run, chronological). */
 export const EvalTrendPoint = z.object({
   ran_at: z.string(),
-  recall: z.number(),
-  precision: z.number(),
-  citation_accuracy: z.number(),
+  version: z.number().int(),
+  recall: EvalMetric,
+  precision: EvalMetric,
+  citation_accuracy: EvalMetric,
   pass_rate: z.number(),
   cost_usd: z.number().nullable(),
 });
 export type EvalTrendPoint = z.infer<typeof EvalTrendPoint>;
 
-/** Aggregate dashboard for an owner (agent/skill) or the whole workspace. */
-export const EvalDashboard = z.object({
-  owner_kind: EvalOwnerKind.nullable(),
-  owner_id: z.string().nullable(),
-  cases_total: z.number().int(),
-  current: z.object({
-    recall: z.number(),
-    precision: z.number(),
-    citation_accuracy: z.number(),
-    traces_passed: z.number().int(),
-    traces_total: z.number().int(),
-    cost_usd: z.number().nullable(),
-  }),
-  delta: z.object({
-    recall: z.number(),
-    precision: z.number(),
-    citation_accuracy: z.number(),
-  }),
-  trend: z.array(EvalTrendPoint),
-  recent_runs: z.array(EvalRunRecord),
-  alert: z.string().nullable(),
+/** Structured "Precision dipped N pts on vX" alert. */
+export const EvalPrecisionDip = z.object({
+  points: z.number().int(),
+  version: z.number().int(),
+  recall_delta: z.number().nullable(),
+  citation_delta: z.number().nullable(),
 });
-export type EvalDashboard = z.infer<typeof EvalDashboard>;
+export type EvalPrecisionDip = z.infer<typeof EvalPrecisionDip>;
+
+/** `GET /agents/:id/eval/detail` — the per-agent eval page. */
+export const EvalAgentDetail = z.object({
+  agent_id: z.string(),
+  agent_name: z.string(),
+  model: z.string(),
+  cases_total: z.number().int(),
+  runs_in_window: z.number().int(),
+  window_days: z.number().int(),
+  latest: EvalAgentRun.nullable(),
+  delta: EvalMetricTriple,
+  trend: z.array(EvalTrendPoint),
+  recent_runs: z.array(EvalAgentRun),
+  in_flight: EvalAgentRun.nullable(),
+  alert: EvalPrecisionDip.nullable(),
+});
+export type EvalAgentDetail = z.infer<typeof EvalAgentDetail>;
+
+/** One dashboard row: an agent with ≥ 1 case. */
+export const EvalAgentSummary = z.object({
+  agent_id: z.string(),
+  agent_name: z.string(),
+  model: z.string(),
+  cases_total: z.number().int(),
+  latest: EvalAgentRun.nullable(),
+  recall_series: z.array(z.number()),
+  in_flight: z.boolean(),
+});
+export type EvalAgentSummary = z.infer<typeof EvalAgentSummary>;
+
+export const EvalWorkspaceRun = EvalAgentRun.extend({ agent_name: z.string() });
+export type EvalWorkspaceRun = z.infer<typeof EvalWorkspaceRun>;
+
+/** `GET /eval/dashboard` — every agent with cases + recent runs across agents. */
+export const EvalWorkspaceDashboard = z.object({
+  agents: z.array(EvalAgentSummary),
+  recent_runs: z.array(EvalWorkspaceRun),
+});
+export type EvalWorkspaceDashboard = z.infer<typeof EvalWorkspaceDashboard>;
+
+// ===========================================================================
+// Eval — compare, promote
+// ===========================================================================
+
+export const EvalSkillDiff = z.object({
+  added: z.array(z.string()),
+  removed: z.array(z.string()),
+  reordered: z.boolean(),
+  changed: z.array(
+    z.object({
+      name: z.string(),
+      from_version: z.number().int(),
+      to_version: z.number().int(),
+    }),
+  ),
+});
+export type EvalSkillDiff = z.infer<typeof EvalSkillDiff>;
+
+/** `GET /eval/compare?a=&b=` — two runs of one agent, ordered older → newer. */
+export const EvalCompare = z.object({
+  old: EvalAgentRun,
+  new: EvalAgentRun,
+  delta: EvalMetricTriple.extend({ cost_usd: z.number().nullable() }),
+  old_prompt: z.string(),
+  new_prompt: z.string(),
+  same_prompt: z.boolean(),
+  model_change: z.object({ from: z.string(), to: z.string() }).nullable(),
+  skill_diff: EvalSkillDiff,
+  no_config_change: z.boolean(),
+  case_set: z.object({
+    same: z.boolean(),
+    only_old: z.number().int(),
+    only_new: z.number().int(),
+  }),
+  promote: z.object({
+    version: z.number().int(),
+    available: z.boolean(),
+    skill_mismatch: z.boolean(),
+  }),
+});
+export type EvalCompare = z.infer<typeof EvalCompare>;
+
+export const EvalPromoteInput = z.object({
+  run_id: z.string().uuid(),
+});
+export type EvalPromoteInput = z.infer<typeof EvalPromoteInput>;
+
+export const EvalPromoteResult = z.object({
+  agent: Agent,
+  new_version: z.number().int(),
+  source_version: z.number().int(),
+  skill_mismatch: z.boolean(),
+});
+export type EvalPromoteResult = z.infer<typeof EvalPromoteResult>;
 
 // ===========================================================================
 // Compose Review

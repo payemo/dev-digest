@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { Severity, FindingCategory } from './findings.js';
 
 /**
  * Conformance, Onboarding, Eval, Memory, Conventions, Skills,
@@ -55,10 +56,13 @@ export const EvalPerTrace = z.object({
 });
 export type EvalPerTrace = z.infer<typeof EvalPerTrace>;
 
+/** A metric in `[0,1]`, or `null` when its denominator is zero ("not applicable"). */
+const EvalMetric = z.number().min(0).max(1).nullable();
+
 export const EvalRun = z.object({
-  recall: z.number().min(0).max(1),
-  precision: z.number().min(0).max(1),
-  citation_accuracy: z.number().min(0).max(1),
+  recall: EvalMetric,
+  precision: EvalMetric,
+  citation_accuracy: EvalMetric,
   traces_passed: z.number().int(),
   traces_total: z.number().int(),
   duration_ms: z.number().int(),
@@ -70,16 +74,101 @@ export type EvalRun = z.infer<typeof EvalRun>;
 export const EvalOwnerKind = z.enum(['skill', 'agent']);
 export type EvalOwnerKind = z.infer<typeof EvalOwnerKind>;
 
+/** `must_find` = seeded from an accepted finding; `must_not_flag` = from a dismissed one. */
+export const EvalExpectationKind = z.enum(['must_find', 'must_not_flag']);
+export type EvalExpectationKind = z.infer<typeof EvalExpectationKind>;
+
+/** The decision a seeded case was frozen from. */
+export const EvalSourceDecision = z.enum(['accepted', 'dismissed']);
+export type EvalSourceDecision = z.infer<typeof EvalSourceDecision>;
+
+/**
+ * One expected finding of a `must_find` case. Matched mechanically: equal file
+ * path + intersecting inclusive line range (`end_line` absent = `[start, start]`).
+ */
+export const EvalExpectedFinding = z
+  .object({
+    severity: Severity,
+    category: FindingCategory,
+    title: z.string().min(1),
+    file: z.string().min(1),
+    start_line: z.number().int().min(1),
+    end_line: z.number().int().min(1).optional(),
+  })
+  .refine((e) => e.end_line === undefined || e.end_line >= e.start_line, {
+    message: 'end_line must be ≥ start_line',
+    path: ['end_line'],
+  });
+export type EvalExpectedFinding = z.infer<typeof EvalExpectedFinding>;
+
+/** A file + inclusive line range (the forbidden location of a `must_not_flag` case). */
+export const EvalLocation = z
+  .object({
+    file: z.string().min(1),
+    start_line: z.number().int().min(1),
+    end_line: z.number().int().min(1),
+  })
+  .refine((l) => l.end_line >= l.start_line, {
+    message: 'end_line must be ≥ start_line',
+    path: ['end_line'],
+  });
+export type EvalLocation = z.infer<typeof EvalLocation>;
+
+/** Frozen PR meta of a case — reaches the model as the task line + description. */
+export const EvalPrMeta = z.object({
+  number: z.number().int().nullish(),
+  title: z.string(),
+  description: z.string().nullish(),
+  author: z.string().nullish(),
+});
+export type EvalPrMeta = z.infer<typeof EvalPrMeta>;
+
+/** A reference-only file entry — never sent to the agent. */
+export const EvalInputFile = z.object({
+  path: z.string(),
+  note: z.string().nullish(),
+});
+export type EvalInputFile = z.infer<typeof EvalInputFile>;
+
+/**
+ * One linked skill as pinned by an eval run, in link order. `content_hash`
+ * covers the rendered prompt block (name + description + body), so a
+ * description edit that leaves `version` unchanged is still detected.
+ * `rendered` is server-only; wire shapes omit it.
+ */
+export const EvalSkillSnapshotEntry = z.object({
+  skill_id: z.string(),
+  name: z.string(),
+  version: z.number().int(),
+  enabled: z.boolean(),
+  order: z.number().int(),
+  content_hash: z.string(),
+  rendered: z.string(),
+});
+export type EvalSkillSnapshotEntry = z.infer<typeof EvalSkillSnapshotEntry>;
+
+export const EvalCaseStatus = z.enum(['passed', 'failed', 'errored']);
+export type EvalCaseStatus = z.infer<typeof EvalCaseStatus>;
+
+export const EvalRunStatus = z.enum(['running', 'completed', 'failed']);
+export type EvalRunStatus = z.infer<typeof EvalRunStatus>;
+
 export const EvalCase = z.object({
   id: z.string(),
   owner_kind: EvalOwnerKind,
   owner_id: z.string(),
   name: z.string(),
+  kind: EvalExpectationKind,
   input_diff: z.string(),
-  input_files: z.unknown(),
-  input_meta: z.unknown(),
-  expected_output: z.unknown(),
+  input_files: z.array(EvalInputFile),
+  input_meta: EvalPrMeta,
+  expected_output: z.array(EvalExpectedFinding),
+  forbidden_location: EvalLocation.nullable(),
+  source_finding_id: z.string().nullable(),
+  source_decision: EvalSourceDecision.nullable(),
   notes: z.string().nullish(),
+  created_at: z.string(),
+  updated_at: z.string(),
 });
 export type EvalCase = z.infer<typeof EvalCase>;
 
