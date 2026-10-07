@@ -63,6 +63,7 @@ concurrency:
 
 env:
   EVAL_BACKEND: openrouter
+  EVAL_TEST_TIMEOUT_MS: '600000' # cheap reasoning models need 30+ agent turns per case
   OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
   EVAL_MODEL: ${{ inputs.model || vars.EVAL_MODEL || 'deepseek/deepseek-v4-flash' }}
   EVAL_JUDGE_MODEL: ${{ inputs.judge_model || vars.EVAL_JUDGE_MODEL || 'google/gemini-2.5-flash' }}
@@ -178,7 +179,7 @@ jobs:
       - name: Run skill evals
         env:
           SKILL: ${{ matrix.skill }}
-        run: pnpm exec vitest run "skills/$SKILL"
+        run: pnpm exec vitest run "skills/$SKILL/" # trailing / : a bare name is a substring filter
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -217,7 +218,7 @@ jobs:
       - name: Run agent evals
         env:
           AGENT: ${{ matrix.agent }}
-        run: pnpm exec vitest run "agents/$AGENT"
+        run: pnpm exec vitest run "agents/$AGENT/" # trailing / : architecture-reviewer would also match -lite
       - if: failure()
         run: docker compose -f proxy/docker-compose.yml logs --tail 100
       - if: always()

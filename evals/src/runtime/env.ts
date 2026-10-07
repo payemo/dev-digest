@@ -32,6 +32,21 @@ export function subscriptionEnv(): Record<string, string> {
     env.ANTHROPIC_BASE_URL = (process.env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api").replace(/\/$/, "");
     env.ANTHROPIC_AUTH_TOKEN = key;
     env.ANTHROPIC_API_KEY = ""; // blank, not deleted — stops the SDK falling back to Anthropic auth
+    // The harness addresses models by alias (a subagent's `model: sonnet`, the small background
+    // model) and the SDK expands them to Claude ids like `claude-sonnet-5`, which OpenRouter /
+    // LiteLLM reject ("not a valid model ID"). Pin every alias to the model under test instead.
+    const model = process.env.EVAL_MODEL;
+    if (model) {
+      for (const k of [
+        "ANTHROPIC_DEFAULT_OPUS_MODEL",
+        "ANTHROPIC_DEFAULT_SONNET_MODEL",
+        "ANTHROPIC_DEFAULT_HAIKU_MODEL",
+        "ANTHROPIC_SMALL_FAST_MODEL",
+        "CLAUDE_CODE_SUBAGENT_MODEL",
+      ]) {
+        env[k] = model;
+      }
+    }
     return env;
   }
 

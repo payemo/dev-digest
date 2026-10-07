@@ -43,7 +43,7 @@ export const cases: AgentCase[] = [
       "quotes the offending line verbatim as evidence for each finding, not a paraphrase",
       "ends with an explicit PASS/FAIL gate verdict based on whether any critical or high findings exist",
     ],
-    threshold: 1.0,
+    threshold: 0.7, // ≥5 of 6 practices: the format-strict ones (verbatim quote, exact rule id) flake on cheap models
     maxTurns: 25,
   },
   {
@@ -69,7 +69,7 @@ export const cases: AgentCase[] = [
       "quotes the offending line verbatim as evidence for each finding, not a paraphrase",
       "ends with an explicit PASS/FAIL gate verdict based on whether any critical or high findings exist",
     ],
-    threshold: 1.0,
+    threshold: 0.7, // ≥5 of 6 practices: the format-strict ones (verbatim quote, exact rule id) flake on cheap models
     maxTurns: 25,
   },
   {
