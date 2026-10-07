@@ -63,11 +63,16 @@ function main(): void {
   console.log(`A = ${labelA}  sha ${a.git_sha}${a.dirty ? "-dirty" : ""}  (${a.times} runs)`);
   console.log(`B = ${labelB}  sha ${b.git_sha}${b.dirty ? "-dirty" : ""}  (${b.times} runs)`);
 
-  const nodeids = [...new Set([...Object.keys(a.tests), ...Object.keys(b.tests)])].sort();
-  for (const id of nodeids) {
-    const ta = a.tests[id];
-    const tb = b.tests[id];
-    const shortId = id.split(" > ").slice(-1)[0];
+  // Pair by case name (last segment of the nodeid), not the full nodeid: an A/B of two DIFFERENT
+  // artifacts (architecture-reviewer vs -lite) shares the cases but not the file/describe prefix.
+  const byCase = (tests: Record<string, NodeAggregate>) =>
+    new Map(Object.entries(tests).map(([id, t]) => [id.split(" > ").slice(-1)[0], t]));
+  const casesA = byCase(a.tests);
+  const casesB = byCase(b.tests);
+  const names = [...new Set([...casesA.keys(), ...casesB.keys()])].sort();
+  for (const shortId of names) {
+    const ta = casesA.get(shortId);
+    const tb = casesB.get(shortId);
     rateRow("\n  ", shortId, ta?.pass, tb?.pass);
 
     const practiceTexts = [...new Set([...Object.keys(ta?.practices ?? {}), ...Object.keys(tb?.practices ?? {})])];

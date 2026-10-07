@@ -7,7 +7,7 @@ course lesson (L01–L08) adds one feature back — see the table in
 
 ## Layout
 
-Five **standalone packages** — no monorepo workspace. Each has its own
+Six **standalone packages** — no monorepo workspace. Each has its own
 `package.json` and lockfile; cross-package code is shared through **tsconfig
 path aliases**, never published/built modules.
 
@@ -18,6 +18,7 @@ path aliases**, never published/built modules.
 | `reviewer-core/` | `@devdigest/reviewer-core` | Pure engine: diff → prompt → LLM → findings        | —    |
 | `e2e/`           | `@devdigest/e2e`           | Deterministic browser e2e (agent-browser)          | —    |
 | `mcp/`           | `@devdigest/mcp`           | Local MCP server (stdio) for coding agents         | —    |
+| `evals/`         | `@devdigest/evals`         | Evals for the Claude Code harness (skills, agents, CLAUDE.md) | — |
 | `server/src/vendor/shared` | `@devdigest/shared` | Zod contracts shared by every package             | —    |
 
 `repo-intel` (codebase indexer behind the **Indexed** badge, feeds project
@@ -68,6 +69,28 @@ Only **Postgres** runs in Docker; API and web run on the host.
 - [`INSIGHTS.md`](INSIGHTS.md) at the root — the cross-cutting one, for findings
   no single package owns.
 
+## Harness evals — which one to run
+
+The skills, subagents and `CLAUDE.md` files are tested by [`evals/`](evals/README.md)
+(**pnpm**; run from `evals/`). After you change one of them, run the matching
+eval — `evals/scripts/ci-detect.mjs` picks the same suites in CI:
+
+| You changed | Run (from `evals/`) |
+|---|---|
+| any `SKILL.md` / agent file (structure, links, frontmatter) | `pnpm eval:quality <name>` — no model, always first |
+| `.claude/skills/<n>/**` | `pnpm exec vitest run skills/<n>/` |
+| `.claude/agents/<n>.md` | `pnpm exec vitest run agents/<n>/` **and** `pnpm eval:workflow` |
+| any `CLAUDE.md` (root or per-package), skill descriptions, dispatch/activation wording | `pnpm eval:workflow` |
+| a skill/agent edit you want to *measure* | `pnpm eval:repeat <dir> -n 2 --label baseline` **before** the edit, `--label candidate` after, then `pnpm eval:delta baseline candidate` |
+| `evals/src/**` | `pnpm typecheck && pnpm exec vitest run src/` |
+| new skill/agent | `pnpm eval:scaffold <name>` (or `--agent <name>`) |
+
+Model-backed runs cost tokens: use a cheap OpenRouter model through the LiteLLM
+proxy (`pnpm proxy:up`, `EVAL_BACKEND=openrouter`, `EVAL_MODEL=deepseek/deepseek-v4-flash`;
+see [evals/README.md](evals/README.md#running-tool-tiers-on-cheap-models-litellm-proxy)) and
+keep `eval:repeat` at `-n 2` (hard cap). CI never gets secrets on fork PRs and its
+model jobs are report-only unless repo variable `EVAL_BLOCKING=true`.
+
 ## Insights loop
 
 Each package has an `INSIGHTS.md` holding what its README and docs don't.
@@ -104,9 +127,9 @@ writes a verdict. A `PreToolUse` hook reads that verdict and **denies
 ## Non-default conventions
 
 - **No workspace.** Never add a root `package.json`, hoist deps, or convert the
-  five packages into a pnpm workspace — the split is deliberate, and CI's
+  standalone packages into a pnpm workspace — the split is deliberate, and CI's
   path filters depend on it.
-- **Package managers differ**: `server`/`client` use pnpm, `reviewer-core`/`e2e`
+- **Package managers differ**: `server`/`client`/`evals` use pnpm, `reviewer-core`/`e2e`
   use npm. Use the one the package already has a lockfile for.
 - **`@devdigest/shared` is the one contract source.** A request/response shape
   changes in `server/src/vendor/shared` and propagates by alias — don't retype
