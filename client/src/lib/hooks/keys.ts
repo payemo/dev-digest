@@ -72,3 +72,23 @@ export const contextKeys = {
     repoId: string | null | undefined,
   ) => ["context-attachments", kind, ownerId, repoId] as const,
 };
+
+/**
+ * Query-key factory for the eval pipeline (src/lib/hooks/eval.ts). Every key
+ * sits under the `"eval"` prefix so one `invalidateQueries({ queryKey:
+ * evalKeys.root() })` refreshes the Evals tab, the dashboard, the per-agent
+ * detail and compare together when a run finishes.
+ */
+export const evalKeys = {
+  root: () => ["eval"] as const,
+  cases: (agentId: string | null | undefined) => ["eval", "cases", agentId] as const,
+  runs: (agentId: string | null | undefined, days: number) =>
+    ["eval", "runs", agentId, days] as const,
+  run: (runId: string | null | undefined) => ["eval", "run", runId] as const,
+  detail: (agentId: string | null | undefined, days: number) =>
+    ["eval", "detail", agentId, days] as const,
+  dashboard: () => ["eval", "dashboard"] as const,
+  compare: (a: string | null | undefined, b: string | null | undefined) =>
+    ["eval", "compare", a, b] as const,
+  seed: (findingId: string | null | undefined) => ["eval", "seed", findingId] as const,
+};
