@@ -54,6 +54,13 @@ export interface MockLLMOptions {
    * by req.schemaName; falls back to `structured` when no entry matches.
    */
   structuredBySchema?: Record<string, unknown>;
+  /**
+   * Request-keyed fixture: when set, its (awaited) return value is the fixture
+   * for completeStructured, taking precedence over `structuredBySchema` /
+   * `structured`. Lets a test make output depend on the prompt (e.g. a marker
+   * in the system message) or hold a call open on a deferred promise.
+   */
+  respond?: (req: StructuredRequest<unknown>) => unknown;
   completionText?: string;
   embedding?: number[];
 }
@@ -91,7 +98,9 @@ export class MockLLMProvider implements LLMProvider {
 
   async completeStructured<T>(req: StructuredRequest<T>): Promise<StructuredResult<T>> {
     this.calls.push({ method: 'completeStructured', req });
-    const fixture = this.opts.structuredBySchema?.[req.schemaName] ?? this.opts.structured ?? {};
+    const fixture = this.opts.respond
+      ? await this.opts.respond(req as StructuredRequest<unknown>)
+      : (this.opts.structuredBySchema?.[req.schemaName] ?? this.opts.structured ?? {});
     const parsed = (req.schema as z.ZodType<T>).safeParse(fixture);
     if (!parsed.success) {
       throw new Error(`MockLLMProvider fixture failed schema: ${parsed.error.message}`);

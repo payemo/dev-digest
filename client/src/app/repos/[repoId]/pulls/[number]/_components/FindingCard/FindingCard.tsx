@@ -21,6 +21,7 @@ import type { FindingRecord, FindingActionKind } from "@devdigest/shared";
 import { SEV_COLOR, SEV_COLOR_FALLBACK } from "./constants";
 import { lineLabel } from "./helpers";
 import { githubBlobUrl } from "../../../../../../../lib/github-urls";
+import { EvalCaseModal } from "@/components/eval-case-modal";
 import { s } from "./styles";
 
 export function FindingCard({
@@ -41,7 +42,9 @@ export function FindingCard({
   headSha?: string | null;
 }) {
   const t = useTranslations("prReview");
+  const tEval = useTranslations("eval");
   const [expanded, setExpanded] = React.useState(defaultExpanded ?? false);
+  const [evalOpen, setEvalOpen] = React.useState(false);
   const sevColor = SEV_COLOR[f.severity] ?? SEV_COLOR_FALLBACK;
   const fileHref =
     repoFullName && headSha
@@ -121,8 +124,28 @@ export function FindingCard({
             >
               {t("finding.dismiss")}
             </Button>
+            {/* Enabled only once the finding carries a persisted decision —
+                accepted seeds a must_find case, dismissed a must_not_flag one. */}
+            <span title={muted ? undefined : tEval("finding.needsDecision")}>
+              <Button
+                kind="ghost"
+                size="sm"
+                icon="FlaskConical"
+                disabled={!muted}
+                onClick={() => setEvalOpen(true)}
+              >
+                {tEval("finding.turnIntoCase")}
+              </Button>
+            </span>
           </div>
+          {!muted && <div style={s.evalHint}>{tEval("finding.needsDecision")}</div>}
         </div>
+      )}
+      {evalOpen && (
+        <EvalCaseModal
+          mode={{ kind: "fromFinding", findingId: f.id, findingTitle: f.title }}
+          onClose={() => setEvalOpen(false)}
+        />
       )}
     </div>
   );

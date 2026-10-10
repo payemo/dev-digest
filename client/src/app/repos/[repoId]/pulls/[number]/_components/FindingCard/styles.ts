@@ -73,6 +73,7 @@ export const s = {
     marginBottom: 8,
     textTransform: "uppercase",
   } satisfies CSSProperties,
+  evalHint: { fontSize: 12, color: "var(--text-muted)", marginTop: 6 } satisfies CSSProperties,
   actions: {
     display: "flex",
     gap: 8,

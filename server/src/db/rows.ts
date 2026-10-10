@@ -23,3 +23,7 @@ export type ContextDocumentRow = typeof t.contextDocuments.$inferSelect;
 export type AgentContextDocumentRow = typeof t.agentContextDocuments.$inferSelect;
 export type SkillContextDocumentRow = typeof t.skillContextDocuments.$inferSelect;
 export type ContextSyncStateRow = typeof t.contextSyncState.$inferSelect;
+export type EvalCaseRow = typeof t.evalCases.$inferSelect;
+export type EvalAgentRunRow = typeof t.evalAgentRuns.$inferSelect;
+/** A per-case eval result (`eval_runs`): a full-run row or a single-case run. */
+export type EvalCaseResultRow = typeof t.evalRuns.$inferSelect;

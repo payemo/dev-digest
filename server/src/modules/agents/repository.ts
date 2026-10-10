@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import * as t from '../../db/schema.js';
-import type { CiFailOn, Provider, ReviewStrategy } from '@devdigest/shared';
+import { AgentVersionConfig, type CiFailOn, type Provider, type ReviewStrategy } from '@devdigest/shared';
 import { DEFAULT_AGENT_DESCRIPTION, INITIAL_AGENT_VERSION } from './constants.js';
 import { isConfigChange } from './helpers.js';
 
@@ -48,6 +48,12 @@ export interface LinkedSkillRow {
   order: number;
 }
 
+/** Result of `promoteVersion` — the service maps the non-ok kinds to typed errors. */
+export type PromoteOutcome =
+  | { kind: 'not_found' }
+  | { kind: 'already_active' }
+  | { kind: 'ok'; row: AgentRow };
+
 /** The transaction-scoped `db` handle `Db['transaction']`'s callback receives. */
 type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 
@@ -83,14 +89,28 @@ export class AgentsRepository {
   }
 
   /** Delete an agent (scoped to workspace). Versions/skill-links cascade;
-   *  agent_runs keep their history with agent_id set null. Returns false if
-   *  no such agent existed in the workspace. */
+   *  agent_runs keep their history with agent_id set null. The agent's eval
+   *  cases (no FK — `owner_id` is polymorphic) are deleted here; its eval runs
+   *  and per-case results cascade. Returns false if no such agent existed in
+   *  the workspace. */
   async deleteById(workspaceId: string, id: string): Promise<boolean> {
-    const rows = await this.db
-      .delete(t.agents)
-      .where(and(eq(t.agents.workspaceId, workspaceId), eq(t.agents.id, id)))
-      .returning({ id: t.agents.id });
-    return rows.length > 0;
+    return this.db.transaction(async (tx) => {
+      const rows = await tx
+        .delete(t.agents)
+        .where(and(eq(t.agents.workspaceId, workspaceId), eq(t.agents.id, id)))
+        .returning({ id: t.agents.id });
+      if (rows.length === 0) return false;
+      await tx
+        .delete(t.evalCases)
+        .where(
+          and(
+            eq(t.evalCases.workspaceId, workspaceId),
+            eq(t.evalCases.ownerKind, 'agent'),
+            eq(t.evalCases.ownerId, id),
+          ),
+        );
+      return true;
+    });
   }
 
   /** Insert an agent AND record version 1 in agent_versions (immutable snapshot). */
@@ -186,6 +206,62 @@ export class AgentsRepository {
         },
       })
       .onConflictDoNothing();
+  }
+
+  /**
+   * Record the `agent_versions` snapshot for the agent's CURRENT version if it
+   * is missing (seeded agents have none until first edited). Idempotent.
+   */
+  async ensureVersionSnapshot(agent: AgentRow): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      await this.snapshotVersion(tx, agent, agent.version);
+    });
+  }
+
+  /**
+   * Promote: copy `sourceVersion`'s recorded config onto the agent as a NEW
+   * version (current + 1) and snapshot it. History is never rewritten and skill
+   * links are left untouched — skills are not part of agent versioning.
+   */
+  async promoteVersion(
+    workspaceId: string,
+    agentId: string,
+    sourceVersion: number,
+  ): Promise<PromoteOutcome> {
+    return this.db.transaction(async (tx) => {
+      const [agent] = await tx
+        .select()
+        .from(t.agents)
+        .where(and(eq(t.agents.workspaceId, workspaceId), eq(t.agents.id, agentId)));
+      if (!agent) return { kind: 'not_found' } as const;
+      const [source] = await tx
+        .select()
+        .from(t.agentVersions)
+        .where(
+          and(eq(t.agentVersions.agentId, agentId), eq(t.agentVersions.version, sourceVersion)),
+        );
+      if (!source) return { kind: 'not_found' } as const;
+      if (sourceVersion === agent.version) return { kind: 'already_active' } as const;
+
+      const cfg = AgentVersionConfig.parse(source.configJson);
+      const nextVersion = agent.version + 1;
+      const [row] = await tx
+        .update(t.agents)
+        .set({
+          provider: cfg.provider,
+          model: cfg.model,
+          systemPrompt: cfg.system_prompt,
+          outputSchema: (cfg.output_schema as object | null | undefined) ?? null,
+          strategy: cfg.strategy,
+          ciFailOn: cfg.ci_fail_on,
+          repoIntel: cfg.repo_intel,
+          version: nextVersion,
+        })
+        .where(and(eq(t.agents.workspaceId, workspaceId), eq(t.agents.id, agentId)))
+        .returning();
+      await this.snapshotVersion(tx, row!, nextVersion);
+      return { kind: 'ok', row: row! } as const;
+    });
   }
 
   // ---- agent_versions (immutable config snapshots) ------------------------

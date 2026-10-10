@@ -5,8 +5,11 @@
  *  - contracts/findings   Review, Finding, Severity, Verdict, FindingAction, trifecta
  *  - contracts/brief      Intent, BlastRadius, Risks, PrHistory, SmartDiff, PrBrief,
  *                         PrBriefRecord
- *  - contracts/knowledge  Conformance, Onboarding, EvalRun/EvalCase, MemoryItem,
+ *  - contracts/knowledge  Conformance, Onboarding, EvalRun/EvalCase (+ expectation,
+ *                         location, PR meta, skill snapshot), MemoryItem,
  *                         Skill/CommunitySkill, ConventionCandidate, Agent
+ *  - contracts/eval-ci    EvalCaseInput/Seed/Record/Result, EvalAgentRun, eval
+ *                         detail/dashboard/compare/promote, compose, CI, conformance
  *  - contracts/skills     SkillCreate/SkillUpdate, SkillVersion, SkillStats
  *  - contracts/conventions ConventionExtractResult, ConventionUpdate,
  *                          ConventionSkillDraft/ConventionSkillCreate

@@ -42,6 +42,9 @@ export const NAV: NavGroup[] = [
         href: "/repos/:repoId/conventions",
         gKey: "c",
       },
+      // No gKey, same reasoning as `context` above. The label is duplicated in
+      // messages/en/shell.json under `nav.eval`.
+      { key: "eval", label: "Eval Dashboard", icon: "Gauge", href: "/eval" },
     ],
   },
 ];
