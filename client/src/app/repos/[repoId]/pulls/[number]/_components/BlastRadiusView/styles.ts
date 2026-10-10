@@ -81,7 +81,9 @@ export const s = {
     display: "flex",
     flexDirection: "column",
     gap: 8,
-    padding: "8px 10px 12px 26px",
+    // Left edge = header border (1) + padding (10) + chevron (13) + gap (8), so
+    // callers line up under the symbol name instead of under the chevron.
+    padding: "10px 10px 12px 32px",
   } satisfies CSSProperties,
   callerList: {
     display: "flex",
@@ -91,7 +93,12 @@ export const s = {
   callerRow: {
     display: "flex",
     alignItems: "baseline",
-    gap: 8,
+    flexWrap: "wrap",
+    gap: "0 8px",
+    minWidth: 0,
+    // Long caller paths have no break opportunities; without this they run
+    // past the card's right edge.
+    overflowWrap: "anywhere",
     fontSize: 13,
   } satisfies CSSProperties,
   callerSymbol: {
