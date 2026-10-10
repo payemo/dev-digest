@@ -6,6 +6,7 @@
 "use client";
 
 import React from "react";
+import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { Button, Icon, Modal } from "@devdigest/ui";
 import type { EvalCaseInputBody, EvalCaseRecord } from "@devdigest/shared";
@@ -75,7 +76,7 @@ function SeededCase({
   );
 }
 
-export function EvalCaseModal({ mode, onClose }: { mode: EvalCaseModalMode; onClose: () => void }) {
+function EvalCaseModalContent({ mode, onClose }: { mode: EvalCaseModalMode; onClose: () => void }) {
   if (mode.kind === "fromFinding") {
     return <SeededCase findingId={mode.findingId} findingTitle={mode.findingTitle} onClose={onClose} />;
   }
@@ -92,4 +93,12 @@ export function EvalCaseModal({ mode, onClose }: { mode: EvalCaseModalMode; onCl
   }
   const initial: EvalCaseInputBody = EMPTY_CASE;
   return <CaseEditor initial={initial} source={null} caseRecord={null} agentId={mode.agentId} onClose={onClose} />;
+}
+
+/* Portaled to <body>: the finding card that opens this is dimmed (`opacity`) and
+   clipped (`overflow: hidden`), which would make the fixed overlay translucent
+   and mis-positioned if it rendered in place. */
+export function EvalCaseModal(props: { mode: EvalCaseModalMode; onClose: () => void }) {
+  if (typeof document === "undefined") return null;
+  return createPortal(<EvalCaseModalContent {...props} />, document.body);
 }
