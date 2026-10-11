@@ -69,6 +69,32 @@ ci_fail_on: "sometimes"
     expect(() => findManifestPath(dir)).toThrow(/exactly one/i);
   });
 
+  describe('--agent <slug> (several agents share one repo)', () => {
+    it('selects the named manifest among several (.yaml or .yml)', () => {
+      writeFileSync(path.join(dir, 'agents', 'security-reviewer.yaml'), VALID_MANIFEST_YAML);
+      writeFileSync(
+        path.join(dir, 'agents', 'perf.yml'),
+        VALID_MANIFEST_YAML.replace('Security Reviewer', 'Perf Reviewer'),
+      );
+      expect(loadManifest(dir, {}, 'perf').name).toBe('Perf Reviewer');
+      expect(loadManifest(dir, {}, 'security-reviewer').name).toBe('Security Reviewer');
+      // Without a slug the exactly-one rule still applies, and names the flag.
+      expect(() => findManifestPath(dir)).toThrow(/pass --agent <slug>/);
+    });
+
+    it('fails clearly when the named manifest does not exist', () => {
+      writeFileSync(path.join(dir, 'agents', 'security-reviewer.yaml'), VALID_MANIFEST_YAML);
+      expect(() => findManifestPath(dir, {}, 'missing')).toThrow(/No manifest for agent 'missing'/);
+    });
+
+    it('refuses a slug that could escape agents/', () => {
+      writeFileSync(path.join(dir, 'agents', 'security-reviewer.yaml'), VALID_MANIFEST_YAML);
+      for (const slug of ['../agents/security-reviewer', 'a/b', 'Security', '', '.hidden']) {
+        expect(() => findManifestPath(dir, {}, slug), slug).toThrow(/Invalid agent slug/);
+      }
+    });
+  });
+
   it('fails clearly on malformed YAML', () => {
     writeFileSync(path.join(dir, 'agents', 'broken.yaml'), 'name: "unterminated\n  bad: [1, 2\n');
     const manifestPath = path.join(dir, 'agents', 'broken.yaml');

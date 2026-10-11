@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import type { LLMProvider, StructuredResult, Review, CiResultArtifact } from '@devdigest/shared';
 import { CiResultArtifact as CiResultArtifactSchema } from '@devdigest/shared';
 import { reviewPullRequest, toReviewPayload } from '@devdigest/reviewer-core';
@@ -329,6 +330,81 @@ describe('runCi (T8 agent-runner orchestrator)', () => {
     expect(result.error).toMatch(/simulated model\/network failure/);
     expect(calls).toHaveLength(0); // nothing posted to the PR
     expect(existsSync(resultPath)).toBe(false); // no artifact written
+  });
+
+  it('v2 artifact: carries the commit, run id, slug, manifest hash and the GATE verdict (not the model\'s)', async () => {
+    writeFileSync(
+      path.join(dir, 'event.json'),
+      JSON.stringify({
+        pull_request: {
+          number: 42,
+          title: 'Add feature X',
+          body: 'b',
+          head: { sha: 'h'.repeat(40), repo: { fork: false } },
+          base: { sha: 'b'.repeat(40) },
+        },
+      }),
+    );
+    const env = { ...baseDeps().env, GITHUB_RUN_ID: '777', GITHUB_RUN_ATTEMPT: '1' };
+    const result = await runCi(
+      baseDeps({ env, agentSlug: 'security-reviewer', nodeVersion: 'v22.0.0', fetchDiff: async () => FIXTURE_DIFF_RAW }),
+    );
+    expect(result.error).toBeUndefined();
+    const onDisk = CiResultArtifactSchema.parse(JSON.parse(readFileSync(resultPath, 'utf8')));
+    expect(onDisk).toMatchObject({
+      format: 'devdigest-ci-result/v2',
+      agent_slug: 'security-reviewer',
+      head_sha: 'h'.repeat(40),
+      base_sha: 'b'.repeat(40),
+      github_run_id: 777,
+      github_run_attempt: 1,
+      repo: 'acme/widgets',
+      provider: 'openrouter',
+      model: 'deepseek/deepseek-v4-flash',
+      node_version: 'v22.0.0',
+      // The stub model self-reports 'approve'; the gate saw a grounded CRITICAL.
+      verdict: 'REQUEST_CHANGES',
+      blockers: 1,
+      gate_triggered: true,
+      post_as: 'github_review',
+      tokens_in: 100,
+      tokens_out: 50,
+    });
+    expect(onDisk.manifest_sha256).toBe(createHash('sha256').update(VALID_MANIFEST_YAML, 'utf8').digest('hex'));
+    // Only grounded findings travel in the artifact (the studio re-grounds anyway).
+    expect(onDisk.findings!.map((f) => f.id)).toEqual(['f1']);
+    expect(onDisk.dependencies).toHaveProperty('reviewer-core');
+  });
+
+  it('memory.jsonl items reach the prompt; a bad line does not fail the review', async () => {
+    writeFileSync(
+      path.join(dir, 'memory.jsonl'),
+      [
+        JSON.stringify({ content: 'MEMORY-MARKER: we use zod at boundaries', scope: 'global', kind: 'convention', confidence: 0.9, sources: [] }),
+        '{broken',
+      ].join('\n'),
+    );
+    const stub = makeStubLlm(GROUNDED_PLUS_HALLUCINATED_REVIEW);
+    const result = await runCi(baseDeps({ llm: stub.llm, fetchDiff: async () => FIXTURE_DIFF_RAW }));
+    expect(result.error).toBeUndefined();
+    const prompt = stub.capturedMessages[0]!.map((m) => m.content).join('\n');
+    expect(prompt).toContain('MEMORY-MARKER: we use zod at boundaries');
+  });
+
+  it('--agent picks one of several manifests; without it the run hard-fails with no artifact', async () => {
+    writeFileSync(
+      path.join(dir, 'agents', 'perf.yaml'),
+      VALID_MANIFEST_YAML.replace('Security Reviewer', 'Perf Reviewer'),
+    );
+    const ambiguous = await runCi(baseDeps({ fetchDiff: async () => FIXTURE_DIFF_RAW }));
+    expect(ambiguous.exitCode).toBe(1);
+    expect(ambiguous.error).toMatch(/exactly one agent manifest/);
+    expect(existsSync(resultPath)).toBe(false);
+
+    const picked = await runCi(baseDeps({ agentSlug: 'perf', fetchDiff: async () => FIXTURE_DIFF_RAW }));
+    expect(picked.error).toBeUndefined();
+    expect(picked.artifact!.agent).toBe('Perf Reviewer');
+    expect(picked.artifact!.agent_slug).toBe('perf');
   });
 
   it('AC-36: parity — the runner\'s posted payload matches a direct local reviewPullRequest + toReviewPayload run on the same diff + deterministic model output', async () => {
