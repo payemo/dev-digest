@@ -92,3 +92,16 @@ export const evalKeys = {
     ["eval", "compare", a, b] as const,
   seed: (findingId: string | null | undefined) => ["eval", "seed", findingId] as const,
 };
+
+/**
+ * Query-key factory for Export to CI + CI Runs (src/lib/hooks/ci.ts). A sync
+ * or export changes both an agent's CI tab and the runs list, so `root()`
+ * invalidates every CI view at once.
+ */
+export const ciKeys = {
+  root: () => ["ci"] as const,
+  agent: (agentId: string | null | undefined) => ["ci", "agent", agentId] as const,
+  runsRoot: () => ["ci", "runs"] as const,
+  runs: (query: unknown) => ["ci", "runs", query] as const,
+  runner: (agentId: string | null | undefined) => ["ci", "runner", agentId] as const,
+};

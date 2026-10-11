@@ -140,6 +140,48 @@ export interface CommitFilesPayload {
   files: CommitFile[];
 }
 
+/** One GitHub Actions workflow run, as the studio's CI ingest needs it. */
+export interface WorkflowRunInfo {
+  id: number;
+  run_attempt: number;
+  html_url: string;
+  event: string;
+  status: string | null;
+  conclusion: string | null;
+  head_sha: string;
+  /** Workflow file path, e.g. ".github/workflows/devdigest-review-x.yml". */
+  path: string;
+  repository_full_name: string;
+  /** null when GitHub omits it (deleted fork). */
+  head_repository_full_name: string | null;
+  pull_numbers: number[];
+  created_at: string;
+  run_started_at: string | null;
+  updated_at: string;
+}
+
+/** One artifact attached to a workflow run. */
+export interface WorkflowArtifactInfo {
+  id: number;
+  name: string;
+  size_in_bytes: number;
+  expired: boolean;
+}
+
+/** Hard caps applied while downloading + inflating an artifact zip. */
+export interface ArtifactLimits {
+  maxZipBytes: number;
+  maxFileBytes: number;
+}
+
+/** Thrown by `downloadArtifactFile` when a size cap is exceeded. */
+export class ArtifactTooLargeError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ArtifactTooLargeError';
+  }
+}
+
 export interface GitHubClient {
   listPullRequests(repo: RepoRef): Promise<PrMeta[]>;
   getPullRequest(repo: RepoRef, n: number): Promise<PrDetail>;
@@ -164,6 +206,45 @@ export interface GitHubClient {
   getIssue(repo: RepoRef, n: number): Promise<IssueMeta>;
   /** GET /user — for "posting as @user". */
   currentLogin(): Promise<string>;
+  /** The repo's default branch (e.g. "main"). */
+  getRepoDefaultBranch(repo: RepoRef): Promise<string>;
+  /** Newest `pull_request` runs of one workflow file (by basename). */
+  listWorkflowRuns(
+    repo: RepoRef,
+    workflowPath: string,
+    opts: { perPage: number },
+  ): Promise<WorkflowRunInfo[]>;
+  listRunArtifacts(repo: RepoRef, runId: number): Promise<WorkflowArtifactInfo[]>;
+  /**
+   * Download an artifact zip and return the UTF-8 text of exactly the entry
+   * `fileName` (null when absent). No other entry is inflated. Throws
+   * `ArtifactTooLargeError` when the zip or the entry exceeds `limits`.
+   */
+  downloadArtifactFile(
+    repo: RepoRef,
+    artifactId: number,
+    fileName: string,
+    limits: ArtifactLimits,
+  ): Promise<string | null>;
+  /** Git blob SHA per path at `ref`; null = the file is missing there. */
+  getBlobShas(repo: RepoRef, ref: string, paths: string[]): Promise<Record<string, string | null>>;
+  /** The PR's base commit (`base.sha`) as GitHub reports it; null when unavailable. */
+  getPullBaseSha(repo: RepoRef, n: number): Promise<string | null>;
+  /** Unified diff `base...head`; null when unavailable or over `maxBytes`. */
+  getCompareDiff(repo: RepoRef, base: string, head: string, maxBytes: number): Promise<string | null>;
+}
+
+// ---------- Runner bundle (the ncc-built agent-runner shipped to CI) ----------
+export interface RunnerBundle {
+  contents: string;
+  sha256: string;
+  /** Embedded RUNNER_VERSION, else the first 12 hex chars of sha256. */
+  version: string;
+}
+
+/** Reads the locally built agent-runner bundle; null when it has not been built. */
+export interface RunnerBundleSource {
+  read(): Promise<RunnerBundle | null>;
 }
 
 // ---------- Git (simple-git, heavy) ----------

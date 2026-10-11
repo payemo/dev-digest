@@ -73,6 +73,7 @@ flowchart TB
   end
   subgraph Agents["Agents"]
     agents["agents<br/>/agents · /agents/:id"]
+    ci["ci (Export to CI + CI Runs)<br/>POST /agents/:id/ci/preview · POST /agents/:id/export-ci<br/>POST /agents/:id/ci/update · GET /agents/:id/ci · GET /agents/:id/ci/runner<br/>GET /ci/runs · POST /ci/sync"]
   end
   subgraph Intel["Repo intelligence"]
     repoIntel["repo-intel<br/>/repos/:id/index-state · /resync"]
@@ -93,10 +94,11 @@ flowchart TB
 | `DATABASE_URL` | `postgres://devdigest:devdigest@localhost:5432/devdigest` | required to migrate/serve |
 | `API_PORT` / `WEB_PORT` | `3001` / `3000` | API port; `WEB_PORT` also sets the allowed CORS origin |
 | `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `OPENROUTER_API_KEY` | — | optional, per-provider; also settable via Settings UI |
-| `GITHUB_TOKEN` | — | optional; PAT with repo scope (`GITHUB_PAT` accepted as a fallback) |
+| `GITHUB_TOKEN` | — | optional; PAT with repo scope (`GITHUB_PAT` accepted as a fallback). Export to CI also needs Contents + Pull requests write, Workflows write, and Actions read |
 | `EMBEDDINGS_ENABLED` | `false` | memory/RAG embeddings (OpenAI); off → **zero** OpenAI calls |
 | `REPO_INTEL_ENABLED` | `true` | repo skeleton + callers in the prompt; `false` → ripgrep-only |
 | `DEVDIGEST_CLONE_DIR` | `./clones` | imported-repo checkouts (git-ignored) |
+| `DEVDIGEST_AGENT_RUNNER_BUNDLE` | `../agent-runner/dist/index.js` | built CI runner shipped by Export to CI as `.devdigest/runner.mjs`; build it with `cd agent-runner && pnpm install && pnpm build` (`scripts/dev.sh` does this when missing) |
 | `LOG_LEVEL` | `info` (`silent` in test) | pino level |
 | `NODE_ENV` | `development` | `test` → silent logs + global rate-limit disabled |
 

@@ -1,0 +1,35 @@
+import type { CSSProperties } from "react";
+
+export const s = {
+  wrap: { padding: 24, maxWidth: 1000, display: "flex", flexDirection: "column", gap: 16 } satisfies CSSProperties,
+  header: { display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" } satisfies CSSProperties,
+  h2: { fontSize: 17, fontWeight: 700 } satisfies CSSProperties,
+  actions: { marginLeft: "auto", display: "flex", gap: 8 } satisfies CSSProperties,
+  list: { display: "flex", flexDirection: "column", gap: 10 } satisfies CSSProperties,
+  addRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    width: "100%",
+    padding: "14px 16px",
+    borderRadius: 10,
+    border: "1px dashed var(--border-strong)",
+    background: "transparent",
+    color: "var(--text-secondary)",
+    fontSize: 13.5,
+    cursor: "pointer",
+  } satisfies CSSProperties,
+  history: { marginTop: 8 } satisfies CSSProperties,
+  historyRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    padding: "8px 2px",
+    borderBottom: "1px solid var(--border)",
+    fontSize: 13,
+  } satisfies CSSProperties,
+  historyRepo: { flex: 1, minWidth: 0, color: "var(--text-secondary)" } satisfies CSSProperties,
+  muted: { fontSize: 12.5, color: "var(--text-muted)" } satisfies CSSProperties,
+  link: { fontSize: 13, color: "var(--text-secondary)", textDecoration: "none" } satisfies CSSProperties,
+} as const;

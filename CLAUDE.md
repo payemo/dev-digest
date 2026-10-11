@@ -7,7 +7,7 @@ course lesson (L01–L08) adds one feature back — see the table in
 
 ## Layout
 
-Six **standalone packages** — no monorepo workspace. Each has its own
+Seven **standalone packages** — no monorepo workspace. Each has its own
 `package.json` and lockfile; cross-package code is shared through **tsconfig
 path aliases**, never published/built modules.
 
@@ -19,6 +19,7 @@ path aliases**, never published/built modules.
 | `e2e/`           | `@devdigest/e2e`           | Deterministic browser e2e (agent-browser)          | —    |
 | `mcp/`           | `@devdigest/mcp`           | Local MCP server (stdio) for coding agents         | —    |
 | `evals/`         | `@devdigest/evals`         | Evals for the Claude Code harness (skills, agents, CLAUDE.md) | — |
+| `agent-runner/`  | `@devdigest/agent-runner`  | Bundled CI runner (ncc) executed in target repos' GitHub Actions | — |
 | `server/src/vendor/shared` | `@devdigest/shared` | Zod contracts shared by every package             | —    |
 
 `repo-intel` (codebase indexer behind the **Indexed** badge, feeds project
@@ -28,7 +29,7 @@ context into reviews) lives inside the server at
 **Each package has its own `CLAUDE.md` — read it before touching that package**:
 [client](client/CLAUDE.md) · [server](server/CLAUDE.md) ·
 [reviewer-core](reviewer-core/CLAUDE.md) · [e2e](e2e/CLAUDE.md) ·
-[mcp](mcp/CLAUDE.md).
+[mcp](mcp/CLAUDE.md) · [agent-runner](agent-runner/CLAUDE.md).
 
 ## Commands
 
@@ -44,6 +45,8 @@ Run everything **from the package directory**, not the root — there is no root
   (+ server `db:migrate` / `db:seed` / `db:generate`).
 - `reviewer-core/`, `e2e/`, `mcp/`: **npm**, not pnpm (`npm test`,
   `npm run typecheck`).
+- `agent-runner/`: **pnpm** (`pnpm typecheck` · `pnpm test` · `pnpm build` →
+  `dist/index.js`, the bundle Export to CI ships as `.devdigest/runner.mjs`).
 - **No linter is configured in any package.** `typecheck` is the enforced
   static-analysis gate; there is no `lint` script and no ESLint config to run
   alongside it.

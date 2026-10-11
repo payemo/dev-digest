@@ -127,6 +127,13 @@
       "when": 1791404327302,
       "tag": "0017_natural_kulan_gath",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791713674366,
+      "tag": "0018_worried_yellowjacket",
+      "breakpoints": true
     }
   ]
 }

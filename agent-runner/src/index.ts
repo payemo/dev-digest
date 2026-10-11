@@ -2,9 +2,10 @@
  * @devdigest/agent-runner — CI runner CLI (T8).
  *
  * Invoked by the generated GitHub Actions workflow as
- * `node .devdigest/runner/index.js` (`server/src/modules/ci/constants.ts` /
- * `workflow.ts`) — bundled by `ncc` into a single self-contained
- * `dist/index.js` (T7) with no runtime dependency on `node_modules/@devdigest/*`.
+ * `node .devdigest/runner.mjs review --agent <slug>`
+ * (`server/src/modules/ci/constants.ts` / `workflow.ts`) — bundled by `ncc`
+ * into a single self-contained ESM `dist/index.js` (shipped as `.mjs`) with no
+ * runtime dependency on `node_modules/@devdigest/*`.
  *
  * Reads CI-injected env vars directly (OPENROUTER_API_KEY, GITHUB_TOKEN,
  * GITHUB_REPOSITORY, PR_NUMBER). This is intentional, not a `SecretsProvider`
@@ -18,6 +19,7 @@
  * real world and maps the result onto `process.exitCode`.
  */
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { OpenRouterProvider } from '@devdigest/reviewer-core';
 import { runCi, type PostAs } from './run.js';
@@ -27,7 +29,34 @@ function resolvePostAs(value: string | undefined): PostAs {
   return 'github_review';
 }
 
-export async function main(env: NodeJS.ProcessEnv = process.env): Promise<number> {
+/**
+ * Parse `[review] [--agent <slug> | --agent=<slug>]`. The `review` subcommand
+ * is optional (the only command); `DEVDIGEST_AGENT` is the env fallback.
+ */
+export function parseArgs(
+  argv: readonly string[],
+  env: NodeJS.ProcessEnv = {},
+): { agentSlug: string | undefined } {
+  let agentSlug: string | undefined;
+  const args = argv[0] === 'review' ? argv.slice(1) : argv;
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i]!;
+    if (arg === '--agent') {
+      agentSlug = args[i + 1];
+      i++;
+    } else if (arg.startsWith('--agent=')) {
+      agentSlug = arg.slice('--agent='.length);
+    }
+  }
+  const fromEnv = env.DEVDIGEST_AGENT;
+  return { agentSlug: agentSlug || fromEnv || undefined };
+}
+
+export async function main(
+  env: NodeJS.ProcessEnv = process.env,
+  argv: readonly string[] = process.argv.slice(2),
+): Promise<number> {
+  const { agentSlug } = parseArgs(argv, env);
   const devdigestDir = env.DEVDIGEST_DIR ?? path.join(process.cwd(), '.devdigest');
   const resultPath = env.DEVDIGEST_RESULT_PATH ?? path.join(process.cwd(), 'devdigest-result.json');
   const postAs = resolvePostAs(env.DEVDIGEST_POST_AS);
@@ -44,6 +73,8 @@ export async function main(env: NodeJS.ProcessEnv = process.env): Promise<number
     llm,
     postAs,
     resultPath,
+    agentSlug,
+    nodeVersion: process.version,
     readFile: readFileSync,
     readDir: readdirSync,
     writeFile: writeFileSync,
@@ -65,7 +96,7 @@ export async function main(env: NodeJS.ProcessEnv = process.env): Promise<number
 const isDirectRun =
   typeof process !== 'undefined' &&
   process.argv[1] != null &&
-  import.meta.url === `file://${process.argv[1]}`;
+  import.meta.url === pathToFileURL(process.argv[1]).href;
 
 if (isDirectRun) {
   main().then(

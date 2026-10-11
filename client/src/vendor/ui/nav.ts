@@ -47,6 +47,14 @@ export const NAV: NavGroup[] = [
       { key: "eval", label: "Eval Dashboard", icon: "Gauge", href: "/eval" },
     ],
   },
+  {
+    section: "GLOBAL",
+    items: [
+      // No gKey, same reasoning as `context` above. The label is duplicated in
+      // messages/en/shell.json under `nav.ci-runs`.
+      { key: "ci-runs", label: "CI Runs", icon: "Workflow", href: "/ci-runs" },
+    ],
+  },
 ];
 
 export const SETTINGS_ITEM: NavItemDef = {

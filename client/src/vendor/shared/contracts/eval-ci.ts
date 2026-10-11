@@ -346,11 +346,31 @@ export type ComposeReviewPreview = z.infer<typeof ComposeReviewPreview>;
 export const CiTarget = z.enum(['gha', 'circle', 'jenkins', 'cli']);
 export type CiTarget = z.infer<typeof CiTarget>;
 
+/** `pull_request` activity types the generated workflow listens to. */
+export const CiTrigger = z.enum(['opened', 'synchronize', 'reopened']);
+export type CiTrigger = z.infer<typeof CiTrigger>;
+
+/** How the CI runner publishes its result (`DEVDIGEST_POST_AS` in the workflow). */
+export const CiPostAs = z.enum(['github_review', 'pr_comment', 'none']);
+export type CiPostAs = z.infer<typeof CiPostAs>;
+
+/** GitHub review event the deterministic gate produced for a CI run. */
+export const CiVerdict = z.enum(['APPROVE', 'REQUEST_CHANGES', 'COMMENT']);
+export type CiVerdict = z.infer<typeof CiVerdict>;
+
+/** Whether the files a CI run executed match the ones the studio exported. */
+export const CiVerification = z.enum(['verified', 'unverified']);
+export type CiVerification = z.infer<typeof CiVerification>;
+
 /** One generated file in the CI bundle (path + editable contents). */
 export const CiFile = z.object({
   path: z.string(),
   contents: z.string(),
   editable: z.boolean().default(true),
+  /** What the file is in the bundle; absent on pre-v2 payloads. */
+  role: z.enum(['manifest', 'skill', 'memory', 'workflow', 'runner']).nullish(),
+  /** UTF-8 byte length of the full contents (set even when `contents` is omitted). */
+  size_bytes: z.number().int().nullish(),
 });
 export type CiFile = z.infer<typeof CiFile>;
 
@@ -364,6 +384,8 @@ export type CiFile = z.infer<typeof CiFile>;
  */
 export const AgentManifest = z.object({
   name: z.string().min(1),
+  /** Agent version at export time; absent on manifests exported before v2. */
+  version: z.number().int().nullish(),
   provider: Provider.default('openrouter'),
   model: z.string().min(1),
   system_prompt: z.string(),
@@ -389,13 +411,52 @@ export const CiExportInput = z.object({
   target: CiTarget.default('gha'),
   /** "open_pr" opens a PR with the files; "files" just returns/persists them. */
   action: z.enum(['open_pr', 'files']).default('open_pr'),
-  post_as: z.enum(['github_review', 'pr_comment', 'none']).default('github_review'),
-  triggers: z.array(z.string()).default(['opened', 'synchronize', 'reopened']),
-  base: z.string().default('main'),
+  post_as: CiPostAs.default('github_review'),
+  triggers: z.array(CiTrigger).min(1).default(['opened', 'synchronize']),
+  /** Base branch for the PR; omitted = the repo's default branch. */
+  base: z.string().min(1).optional(),
+  /** User-edited workflow YAML; null/absent = use the generated one. */
+  workflow_yaml: z.string().max(20_000).nullish(),
 });
 export type CiExportInput = z.infer<typeof CiExportInput>;
 /** Caller-facing input type — `.default()` fields stay optional (web hooks). */
 export type CiExportInputBody = z.input<typeof CiExportInput>;
+
+/** Request body for `POST /agents/:id/ci/preview`. */
+export const CiPreviewInput = CiExportInput.pick({
+  repo: true,
+  target: true,
+  post_as: true,
+  triggers: true,
+});
+export type CiPreviewInput = z.infer<typeof CiPreviewInput>;
+/** Caller-facing input type — `.default()` fields stay optional (web hooks). */
+export type CiPreviewInputBody = z.input<typeof CiPreviewInput>;
+
+/** Why an export cannot proceed (rendered as a banner; disables Install). */
+export const CiBlockingCode = z.enum([
+  'provider_unsupported',
+  'runner_bundle_missing',
+  'repo_not_imported',
+  'target_unsupported',
+]);
+export type CiBlockingCode = z.infer<typeof CiBlockingCode>;
+
+/**
+ * Response of `POST /agents/:id/ci/preview`. The runner file is listed with
+ * empty `contents` (too large to preview) and its real `size_bytes`.
+ */
+export const CiPreview = z.object({
+  files: z.array(CiFile),
+  workflow_path: z.string(),
+  branch: z.literal('devdigest/ci'),
+  blocking: z.array(z.object({ code: CiBlockingCode, message: z.string() })),
+  secret_names: z.array(z.string()),
+});
+export type CiPreview = z.infer<typeof CiPreview>;
+
+export const CiRunStatus = z.enum(['succeeded', 'failed', 'no_findings', 'running']);
+export type CiRunStatus = z.infer<typeof CiRunStatus>;
 
 /** A persisted CI installation (mirrors `ci_installations`). */
 export const CiInstallation = z.object({
@@ -404,6 +465,27 @@ export const CiInstallation = z.object({
   repo: z.string(),
   target_type: CiTarget,
   installed_at: z.string(),
+  repo_id: z.string().nullish(),
+  post_as: CiPostAs.nullish(),
+  triggers: z.array(CiTrigger).nullish(),
+  workflow_path: z.string().nullish(),
+  /** Version of the studio's workflow template used at export. */
+  workflow_version: z.number().int().nullish(),
+  /** Agent version written into the exported manifest. */
+  manifest_version: z.number().int().nullish(),
+  runner_version: z.string().nullish(),
+  branch: z.string().nullish(),
+  pr_url: z.string().nullish(),
+  updated_at: z.string().nullish(),
+  /** Computed on read: the repo's files differ from what the studio would export now. */
+  outdated: z.boolean().nullish(),
+  last_run: z
+    .object({
+      status: CiRunStatus,
+      ran_at: z.string().nullable(),
+      verification: CiVerification.nullable(),
+    })
+    .nullish(),
 });
 export type CiInstallation = z.infer<typeof CiInstallation>;
 
@@ -415,8 +497,18 @@ export const CiExport = z.object({
 });
 export type CiExport = z.infer<typeof CiExport>;
 
-export const CiRunStatus = z.enum(['succeeded', 'failed', 'no_findings', 'running']);
-export type CiRunStatus = z.infer<typeof CiRunStatus>;
+/** Response of `POST /agents/:id/ci/update` — every recommitted installation. */
+export const CiUpdateResponse = z.object({ installations: z.array(CiInstallation) });
+export type CiUpdateResponse = z.infer<typeof CiUpdateResponse>;
+
+/** Response of `GET /agents/:id/ci/runner` — the runner bundle for the zip download. */
+export const CiRunnerResponse = z.object({
+  path: z.string(),
+  contents: z.string(),
+  sha256: z.string(),
+  version: z.string(),
+});
+export type CiRunnerResponse = z.infer<typeof CiRunnerResponse>;
 
 /** A CI run row (mirrors `ci_runs`) — ingested from GitHub Actions artifacts. */
 export const CiRun = z.object({
@@ -431,12 +523,79 @@ export const CiRun = z.object({
   source: z.string().nullable(),
   agent: z.string().nullish(),
   duration_s: z.number().nullish(),
+  agent_id: z.string().nullish(),
+  agent_run_id: z.string().nullish(),
+  repo: z.string().nullish(),
+  /** Studio repo id when the PR is imported (links to the studio PR page); null otherwise. */
+  repo_id: z.string().nullish(),
+  verdict: CiVerdict.nullish(),
+  duration_ms: z.number().int().nullish(),
+  job_url: z.string().nullish(),
+  head_sha: z.string().nullish(),
+  model: z.string().nullish(),
+  manifest_version: z.number().int().nullish(),
+  verification: CiVerification.nullish(),
+  grounding: z.string().nullish(),
+  /** Findings count the CI artifact claimed, before studio re-grounding. */
+  reported_findings_count: z.number().int().nullish(),
 });
 export type CiRun = z.infer<typeof CiRun>;
 
+/** Response of `GET /agents/:id/ci` — the agent's CI tab. */
+export const CiAgentOverview = z.object({
+  agent_id: z.string(),
+  ci_fail_on: CiFailOn,
+  active_repos: z.number().int(),
+  installations: z.array(CiInstallation),
+  recent_runs: z.array(CiRun),
+});
+export type CiAgentOverview = z.infer<typeof CiAgentOverview>;
+
+/** Query of `GET /ci/runs`. */
+export const CiRunsQuery = z.object({
+  days: z.coerce.number().int().min(1).max(90).default(7),
+  agent_id: z.string().uuid().optional(),
+  repo: z.string().min(1).optional(),
+  status: CiRunStatus.optional(),
+});
+export type CiRunsQuery = z.infer<typeof CiRunsQuery>;
+/** Caller-facing input type — `.default()` fields stay optional (web hooks). */
+export type CiRunsQueryInput = z.input<typeof CiRunsQuery>;
+
+/** Why an ingest rejected a GitHub Actions run (one per security check). */
+export const CiRejectReason = z.enum([
+  'repo_mismatch',
+  'fork_run',
+  'wrong_event',
+  'wrong_workflow',
+  'artifact_missing',
+  'artifact_too_large',
+  'artifact_invalid',
+  'artifact_mismatch',
+]);
+export type CiRejectReason = z.infer<typeof CiRejectReason>;
+
+/** Response of `POST /ci/sync`. */
+export const CiSyncResult = z.object({
+  ingested: z.number().int(),
+  failed_runs: z.number().int(),
+  skipped: z.number().int(),
+  rejected: z.array(
+    z.object({
+      installation_id: z.string(),
+      github_run_id: z.number().int(),
+      reason: CiRejectReason,
+    }),
+  ),
+  /** Installations whose sync failed as a whole (e.g. missing token scope). */
+  errors: z.array(z.object({ installation_id: z.string(), message: z.string() })),
+});
+export type CiSyncResult = z.infer<typeof CiSyncResult>;
+
 /**
  * The artifact shape uploaded by the CI action (`devdigest-result.json`).
- * Ingested back on refresh to populate `ci_runs` (L06).
+ * Ingested back on sync to populate `ci_runs`. Every v2 field is nullish so a
+ * v1 artifact (older installed bundle) still parses.
  */
 export const CiResultArtifact = z.object({
   findings_count: z.number().int(),
@@ -448,6 +607,28 @@ export const CiResultArtifact = z.object({
   agent: z.string(),
   version: z.string().nullish(),
   pr_number: z.number().int().nullish(),
+  // ---- v2 (trace-bearing) ----
+  format: z.literal('devdigest-ci-result/v2').nullish(),
+  agent_slug: z.string().nullish(),
+  manifest_version: z.number().int().nullish(),
+  manifest_sha256: z.string().nullish(),
+  provider: z.string().nullish(),
+  model: z.string().nullish(),
+  runner_version: z.string().nullish(),
+  node_version: z.string().nullish(),
+  dependencies: z.record(z.string()).nullish(),
+  repo: z.string().nullish(),
+  head_sha: z.string().nullish(),
+  base_sha: z.string().nullish(),
+  github_run_id: z.number().int().nullish(),
+  github_run_attempt: z.number().int().nullish(),
+  verdict: CiVerdict.nullish(),
+  blockers: z.number().int().nullish(),
+  gate_triggered: z.boolean().nullish(),
+  post_as: CiPostAs.nullish(),
+  tokens_in: z.number().int().nullish(),
+  tokens_out: z.number().int().nullish(),
+  findings: z.array(Finding).max(500).nullish(),
 });
 export type CiResultArtifact = z.infer<typeof CiResultArtifact>;
 

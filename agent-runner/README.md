@@ -4,15 +4,25 @@ The **DevDigest CI runner** — a standalone CLI that runs a DevDigest review ag
 inside a *target repository's own CI* (GitHub Actions), entirely outside this
 repo's server, its DI graph, and its Postgres instance.
 
-`src/index.ts` is `ncc`-bundled into a single self-contained `dist/index.js`,
-embedded as `.devdigest/runner/index.js` in the exported `devdigest/ci` PR, and
-executed by the target repo's workflow as `node .devdigest/runner/index.js`.
+`src/index.ts` is `ncc`-bundled into a single self-contained ES module
+`dist/index.js`, embedded as `.devdigest/runner.mjs` in the exported
+`devdigest/ci` PR, and executed by the target repo's workflow as
+`node .devdigest/runner.mjs review --agent <slug>`. The `.mjs` extension makes
+Node load the bundle as ESM whatever the target repo's `package.json` says.
+(ncc also emits a small `dist/300.index.js` chunk for the OpenAI SDK's
+file-upload helper; the runner never reaches that code path, so only
+`index.js` is shipped.)
 
 ## What it does
 
 1. **Loads + validates** the checked-in manifest `.devdigest/agents/<slug>.yaml`
    and skill bodies `.devdigest/skills/*.md` from the target repo's working tree
-   (validated against `AgentManifest` before use).
+   (validated against `AgentManifest` before use). With `--agent <slug>` (or
+   `DEVDIGEST_AGENT`) it reads that agent's manifest, so several agents can
+   share a repo; without it, exactly one manifest must exist. Curated memory
+   from `.devdigest/memory.jsonl` (one `MemoryItem` per line; missing file = no
+   memory, invalid lines skipped, ≤ 200 items) goes into the prompt's memory
+   slot.
 2. **Resolves the PR context** (owner / repo / number / title / body / fork flag)
    from CI env vars + the `pull_request` event payload.
 3. **Fetches the PR diff** via the GitHub REST API (native `fetch`, no octokit)
@@ -95,12 +105,28 @@ there is no `SecretsProvider` / DI graph to inject from (see `CLAUDE.md`).
 | `GITHUB_EVENT_PATH` | auto (GHA) | `pull_request` event payload (title/body/fork) |
 | `DEVDIGEST_DIR` | no | override the `.devdigest` dir (default: `cwd/.devdigest`) |
 | `DEVDIGEST_RESULT_PATH` | no | override artifact path (default: `cwd/devdigest-result.json`) |
-| `DEVDIGEST_POST_AS` | no | `github_review` (default) \| `pr_comment` \| `none` |
+| `DEVDIGEST_POST_AS` | no | `github_review` (default) \| `pr_comment` \| `none` — set by the generated workflow from the wizard's "Post results as" |
+| `DEVDIGEST_AGENT` | no | agent slug; fallback for `--agent <slug>` |
+| `GITHUB_RUN_ID` / `GITHUB_RUN_ATTEMPT` | auto (GHA) | recorded in the result artifact |
 
 ¹ Falls back to `pull_request.number` from the event payload if `PR_NUMBER` is unset.
 
 Secrets are never logged and never written to `devdigest-result.json` or any
 posted comment.
+
+## Result artifact (`devdigest-result.json`, format `devdigest-ci-result/v2`)
+
+Besides the v1 counts (`findings_count`, `critical`/`warning`/`suggestion`,
+`cost_usd`, `duration_ms`, `agent`, `version`, `pr_number`), v2 carries what the
+studio needs to ingest a trace: `agent_slug`, `manifest_version`,
+`manifest_sha256`, `provider`, `model`, `runner_version`, `node_version`,
+`dependencies`, `repo`, `head_sha`, `base_sha`, `github_run_id`,
+`github_run_attempt`, `verdict` (the deterministic gate's event), `blockers`,
+`gate_triggered`, `post_as`, `tokens_in`, `tokens_out` and the grounded
+`findings` (≤ 500). Every v2 field is optional in `CiResultArtifact`, so v1
+artifacts still parse. The workflow uploads it as the `devdigest-result`
+artifact; the studio pulls it back, but treats it as untrusted (it re-grounds
+the findings and recomputes the verdict itself).
 
 ## Exit codes
 
