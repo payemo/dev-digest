@@ -43,7 +43,7 @@ export function Tabs({
             {I && <I size={14} style={{ color: on ? "var(--accent)" : "var(--text-muted)" }} />}
             {label}
             {typeof t === "object" && t.count != null && (
-              <span className="tnum" style={{ fontSize: 12, color: "var(--text-muted)" }}>
+              <span className="tnum" style={{ fontSize: 12, color: t.countColor ?? "var(--text-muted)" }}>
                 {t.count}
               </span>
             )}

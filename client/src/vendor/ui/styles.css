@@ -266,6 +266,14 @@ p {
     transform: none;
   }
 }
+@keyframes ddindeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
 @keyframes ddshimmer {
   0% {
     background-position: 200% 0;

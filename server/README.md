@@ -69,7 +69,8 @@ flowchart TB
     polling["polling<br/>/repos/:id/poll"]
   end
   subgraph Review["Review & runs"]
-    reviews["reviews<br/>/pulls/:id/review · /reviews · /findings/:id/(accept|dismiss)<br/>/runs/:id/(events|trace)"]
+    reviews["reviews<br/>/pulls/:id/review {agentIds|all|agentId} · /reviews · /findings/:id/(accept|dismiss)<br/>/runs/:id/(events|trace)"]
+    multiAgent["multi-agent<br/>/pulls/:id/multi-agent/(candidates|latest) · /repos/:id/multi-agent/latest"]
   end
   subgraph Agents["Agents"]
     agents["agents<br/>/agents · /agents/:id"]

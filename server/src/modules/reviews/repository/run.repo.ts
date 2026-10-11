@@ -146,6 +146,47 @@ export async function createAgentRun(
   return row!.id;
 }
 
+/**
+ * Create one `multi_agent_runs` parent plus one `running` child `agent_runs`
+ * row per agent, atomically — a failed insert leaves no orphan parent. Child
+ * ids are returned in input order. Only the local multi-agent path calls this,
+ * so a CI row never gets a parent.
+ */
+export async function createMultiAgentRunWithChildren(
+  db: Db,
+  values: {
+    workspaceId: string;
+    prId: string;
+    children: { agentId: string | null; provider: string | null; model: string | null }[];
+  },
+): Promise<{ multiAgentRunId: string; runIds: string[] }> {
+  return db.transaction(async (tx) => {
+    const [parent] = await tx
+      .insert(t.multiAgentRuns)
+      .values({ workspaceId: values.workspaceId, prId: values.prId })
+      .returning({ id: t.multiAgentRuns.id });
+    const multiAgentRunId = parent!.id;
+    const runIds: string[] = [];
+    for (const child of values.children) {
+      const [row] = await tx
+        .insert(t.agentRuns)
+        .values({
+          workspaceId: values.workspaceId,
+          agentId: child.agentId,
+          prId: values.prId,
+          provider: child.provider,
+          model: child.model,
+          status: 'running',
+          source: 'local',
+          multiAgentRunId,
+        })
+        .returning({ id: t.agentRuns.id });
+      runIds.push(row!.id);
+    }
+    return { multiAgentRunId, runIds };
+  });
+}
+
 export async function completeAgentRun(
   db: Db,
   runId: string,

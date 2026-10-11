@@ -1,0 +1,63 @@
+{
+  "crumb": {
+    "area": "Multi-Agent Review",
+    "configure": "Configure run"
+  },
+  "configure": {
+    "title": "Run a Multi-Agent Review",
+    "subtitle": "Pick a pull request and choose which agents to fan out — they run in parallel and you compare their findings side by side.",
+    "stepPr": "Pull request",
+    "stepAgents": "Agents to run",
+    "prPlaceholder": "Select a pull request",
+    "prOption": "#{number} · {title}",
+    "pickPrFirst": "Pick a pull request first",
+    "selectAll": "Select all",
+    "run": "Run multi-agent review ({count})",
+    "starting": "Starting…",
+    "total": "≈ {duration} · {cost} · parallel fan-out",
+    "partial": "partial estimate",
+    "noEstimate": "no estimate",
+    "estimate": "{duration} · {cost}",
+    "noAgentsTitle": "No enabled agents",
+    "noAgentsBody": "Enable at least one agent to run a multi-agent review.",
+    "noAgentsAction": "Go to Agents",
+    "loadError": "Couldn't load agents for this pull request"
+  },
+  "results": {
+    "title": "Multi-Agent Review",
+    "selected": "{count} selected agents · parallel",
+    "totals": "{count} agents · {duration} total · {cost}",
+    "failedCost": "+ {cost} on failed runs",
+    "columns": "Columns",
+    "tabs": "Tabs",
+    "configureRun": "Configure run",
+    "newRun": "New multi-agent run",
+    "viewTrace": "View trace",
+    "findings": "{count} findings",
+    "noFindings": "no findings",
+    "emptyTitle": "No multi-agent run for this pull request yet",
+    "emptyBody": "Pick the agents to fan out and compare their findings side by side.",
+    "emptyAction": "Configure run",
+    "loadError": "Couldn't load this multi-agent run",
+    "prNotFound": "Pull request #{number} was not found in this repository."
+  },
+  "status": {
+    "running": "running",
+    "done": "done",
+    "partial": "partial",
+    "failed": "failed",
+    "cancelled": "cancelled"
+  },
+  "disagree": {
+    "title": "Where agents disagree",
+    "onlyConflicts": "Show only conflicts",
+    "didNotFlag": "did not flag",
+    "didNotFlagNote": "No finding at this location.",
+    "noResult": "no result",
+    "noResultNote": "This agent did not finish, so it has no take here.",
+    "pending": "pending",
+    "pendingNote": "Still running…",
+    "allFailed": "Every agent failed — there is nothing to compare.",
+    "noRows": "No locations to compare."
+  }
+}

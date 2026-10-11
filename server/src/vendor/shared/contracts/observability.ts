@@ -15,6 +15,8 @@ import { Severity } from './findings.js';
  * The single-document run trace itself stays in `contracts/trace.ts` (RunTrace).
  */
 
+// NOTE: the Multi-Agent Review shapes below are unused; new code uses
+// `contracts/multi-agent.ts` (MultiAgentRunView, MultiAgentColumn, DisagreementRow, …).
 // ---------------------------------------------------------------------------
 // Multi-Agent Review
 // ---------------------------------------------------------------------------

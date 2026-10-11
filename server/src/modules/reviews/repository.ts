@@ -144,6 +144,15 @@ export class ReviewRepository {
     return runRepo.createAgentRun(this.db, values);
   }
 
+  /** Create a multi-agent parent + its `running` children in one transaction. */
+  createMultiAgentRunWithChildren(values: {
+    workspaceId: string;
+    prId: string;
+    children: { agentId: string | null; provider: string | null; model: string | null }[];
+  }): Promise<{ multiAgentRunId: string; runIds: string[] }> {
+    return runRepo.createMultiAgentRunWithChildren(this.db, values);
+  }
+
   completeAgentRun(
     runId: string,
     values: {
