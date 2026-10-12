@@ -105,3 +105,16 @@ export const ciKeys = {
   runs: (query: unknown) => ["ci", "runs", query] as const,
   runner: (agentId: string | null | undefined) => ["ci", "runner", agentId] as const,
 };
+
+/**
+ * Query-key factory for Multi-Agent Review (src/lib/hooks/multi-agent.ts).
+ * Every key sits under the `"multi-agent"` prefix so starting a run or acting
+ * on a finding refreshes the picker, the results view and the area landing
+ * with one `invalidateQueries({ queryKey: multiAgentKeys.root() })`.
+ */
+export const multiAgentKeys = {
+  root: () => ["multi-agent"] as const,
+  candidates: (prId: string | null | undefined) => ["multi-agent", "candidates", prId] as const,
+  latestForPull: (prId: string | null | undefined) => ["multi-agent", "pull", prId] as const,
+  latestForRepo: (repoId: string | null | undefined) => ["multi-agent", "repo", repoId] as const,
+};

@@ -17,6 +17,7 @@ import brief from './brief/routes.js';
 // `eval` is not a valid ESM binding name, hence `evals`.
 import evals from './eval/routes.js';
 import ci from './ci/routes.js';
+import multiAgent from './multi-agent/routes.js';
 
 /**
  * Module registry. Each feature module is a Fastify plugin in
@@ -49,4 +50,5 @@ export const modules: Record<string, FastifyPluginAsync> = {
   brief,
   evals,
   ci,
+  multiAgent,
 };

@@ -1,5 +1,10 @@
 import React from "react";
 
+/** Severity colour for a 0–100 score: green ≥75, amber ≥50, red below. */
+export function scoreColor(score: number): string {
+  return score >= 75 ? "var(--ok)" : score >= 50 ? "var(--warn)" : "var(--crit)";
+}
+
 export function CircularScore({
   score,
   size = 44,
@@ -11,7 +16,7 @@ export function CircularScore({
 }) {
   const r = (size - stroke) / 2;
   const circ = 2 * Math.PI * r;
-  const c = score >= 75 ? "var(--ok)" : score >= 50 ? "var(--warn)" : "var(--crit)";
+  const c = scoreColor(score);
   return (
     <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
       <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>

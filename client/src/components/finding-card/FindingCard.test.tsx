@@ -2,8 +2,8 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import type { FindingRecord } from "@devdigest/shared";
-import messages from "../../../../../../../../messages/en/prReview.json";
-import evalMessages from "../../../../../../../../messages/en/eval.json";
+import messages from "../../../messages/en/prReview.json";
+import evalMessages from "../../../messages/en/eval.json";
 import { POSITIVE_DRAFT } from "@/test/eval-fixtures";
 
 // The eval-case modal the card opens talks to the server only through these
@@ -108,5 +108,21 @@ describe("FindingCard (smoke, both themes)", () => {
       fireEvent.click(turnInto());
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
+  });
+});
+
+describe("FindingCard Learn action", () => {
+  it("is absent by default, so the PR page is unchanged (NFR-6)", () => {
+    renderWithIntl(<FindingCard f={FINDING} defaultExpanded onAction={() => {}} />);
+    expect(screen.queryByRole("button", { name: "Learn" })).toBeNull();
+  });
+
+  it("with showLearn renders a disabled Learn that triggers no action (AC-43)", () => {
+    const onAction = vi.fn();
+    renderWithIntl(<FindingCard f={FINDING} defaultExpanded showLearn onAction={onAction} />);
+    const learn = screen.getByRole("button", { name: "Learn" });
+    expect(learn).toBeDisabled();
+    fireEvent.click(learn);
+    expect(onAction).not.toHaveBeenCalled();
   });
 });

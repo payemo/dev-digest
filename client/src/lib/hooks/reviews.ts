@@ -7,7 +7,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { api, API_BASE } from "../api";
 import { notify } from "../toast";
-import { reviewKeys } from "./keys";
+import { multiAgentKeys, reviewKeys } from "./keys";
 import {
   PrReviewComment as PrReviewCommentSchema,
   PrIntentRecord as PrIntentRecordSchema,
@@ -238,9 +238,11 @@ export function useGeneratePrBrief(prId: string | null | undefined) {
   });
 }
 
-// ---- Run a review (all enabled agents or a specific agent) ----
+// ---- Run a review (ticked agents, all enabled agents, or a specific agent) ----
 export interface RunReviewInput {
   prId: string;
+  /** Multi-agent run of exactly these enabled agents (creates a parent run). */
+  agentIds?: string[];
   agentId?: string;
   all?: boolean;
 }
@@ -248,8 +250,9 @@ export interface RunReviewInput {
 export function useRunReview() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ prId, agentId, all }: RunReviewInput) =>
+    mutationFn: ({ prId, agentIds, agentId, all }: RunReviewInput) =>
       api.post<ReviewRunResponse>(`/pulls/${prId}/review`, {
+        ...(agentIds && agentIds.length > 0 ? { agentIds } : {}),
         ...(agentId ? { agentId } : {}),
         ...(all ? { all } : {}),
       }),
@@ -264,6 +267,8 @@ export function useRunReview() {
       // New findings move `finding_lines`, so the grouped diff's counters and
       // indicators refresh without a page reload.
       qc.invalidateQueries({ queryKey: reviewKeys.smartDiff(prId) });
+      // A grouped run creates a new parent: refresh Multi-Agent Review too.
+      qc.invalidateQueries({ queryKey: multiAgentKeys.root() });
     },
   });
 }
@@ -292,6 +297,8 @@ export function useFindingAction() {
         qc.invalidateQueries({ queryKey: reviewKeys.reviews(prId) });
         qc.invalidateQueries({ queryKey: reviewKeys.smartDiff(prId) });
       }
+      // Tabs + detail renders findings from the multi-agent view.
+      qc.invalidateQueries({ queryKey: multiAgentKeys.root() });
     },
   });
 }

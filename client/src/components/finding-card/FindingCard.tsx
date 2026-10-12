@@ -20,7 +20,7 @@ import {
 import type { FindingRecord, FindingActionKind } from "@devdigest/shared";
 import { SEV_COLOR, SEV_COLOR_FALLBACK } from "./constants";
 import { lineLabel } from "./helpers";
-import { githubBlobUrl } from "../../../../../../../lib/github-urls";
+import { githubBlobUrl } from "@/lib/github-urls";
 import { EvalCaseModal } from "@/components/eval-case-modal";
 import { s } from "./styles";
 
@@ -32,6 +32,7 @@ export function FindingCard({
   pending,
   repoFullName,
   headSha,
+  showLearn = false,
 }: {
   f: FindingRecord;
   focused?: boolean;
@@ -40,6 +41,8 @@ export function FindingCard({
   pending?: boolean;
   repoFullName?: string | null;
   headSha?: string | null;
+  /** Show a disabled "Learn" action (Multi-Agent Review); off on the PR page. */
+  showLearn?: boolean;
 }) {
   const t = useTranslations("prReview");
   const tEval = useTranslations("eval");
@@ -137,6 +140,15 @@ export function FindingCard({
                 {tEval("finding.turnIntoCase")}
               </Button>
             </span>
+            {/* Learn is not built yet: visible, disabled, no handler, no call.
+                Button takes no `title`, so the tooltip sits on a wrapper. */}
+            {showLearn && (
+              <span title={t("finding.learnComingSoon")}>
+                <Button kind="ghost" size="sm" icon="Brain" disabled>
+                  {t("finding.learn")}
+                </Button>
+              </span>
+            )}
           </div>
           {!muted && <div style={s.evalHint}>{tEval("finding.needsDecision")}</div>}
         </div>

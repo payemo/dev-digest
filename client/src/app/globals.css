@@ -22,3 +22,37 @@
     transform: translateY(0);
   }
 }
+
+/* Multi-Agent Review — per-agent identity colours (columns, cards, tabs).
+   Deliberately distinct from the severity tokens (--crit / --warn / --sugg),
+   which stay on findings. Defined here, not in vendor/ui/styles.css. */
+:root,
+[data-theme="dark"] {
+  --agent-1: #a78bfa;
+  --agent-1-bg: rgba(167, 139, 250, 0.14);
+  --agent-2: #34d399;
+  --agent-2-bg: rgba(52, 211, 153, 0.14);
+  --agent-3: #f472b6;
+  --agent-3-bg: rgba(244, 114, 182, 0.14);
+  --agent-4: #22d3ee;
+  --agent-4-bg: rgba(34, 211, 238, 0.14);
+  --agent-5: #fb923c;
+  --agent-5-bg: rgba(251, 146, 60, 0.14);
+  --agent-6: #a3e635;
+  --agent-6-bg: rgba(163, 230, 53, 0.14);
+}
+
+[data-theme="light"] {
+  --agent-1: #7c3aed;
+  --agent-1-bg: rgba(124, 58, 237, 0.1);
+  --agent-2: #059669;
+  --agent-2-bg: rgba(5, 150, 105, 0.1);
+  --agent-3: #db2777;
+  --agent-3-bg: rgba(219, 39, 119, 0.1);
+  --agent-4: #0891b2;
+  --agent-4-bg: rgba(8, 145, 178, 0.1);
+  --agent-5: #ea580c;
+  --agent-5-bg: rgba(234, 88, 12, 0.1);
+  --agent-6: #65a30d;
+  --agent-6-bg: rgba(101, 163, 13, 0.1);
+}

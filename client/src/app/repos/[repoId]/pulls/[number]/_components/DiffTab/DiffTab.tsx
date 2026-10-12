@@ -27,7 +27,7 @@ import {
 } from "@/lib/hooks/reviews";
 import { notify } from "@/lib/toast";
 import type { PrFile } from "@devdigest/shared";
-import { FindingCard } from "../FindingCard";
+import { FindingCard } from "@/components/finding-card";
 import { SmartDiffGroups } from "../SmartDiffGroups";
 import { diffTotals } from "../SmartDiffGroups/helpers";
 import { s } from "./styles";

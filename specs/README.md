@@ -59,3 +59,4 @@ to `implementation-planner`, which reads this table first.
 | [03-pr-brief.md](03-pr-brief.md) | `server/` · `client/` · shared contracts | draft (2026-09-30) |
 | [04-eval-pipeline.md](04-eval-pipeline.md) | `server/` · `client/` · shared contracts | draft (2026-10-07) |
 | [05-export-to-ci.md](05-export-to-ci.md) | `server/` · `client/` · `agent-runner/` · shared contracts | draft (2026-10-11) |
+| [06-multi-agent-review.md](06-multi-agent-review.md) | `server/` · `client/` · shared contracts | draft (2026-10-10) |

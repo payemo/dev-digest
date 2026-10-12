@@ -9,7 +9,8 @@ import { ReviewService } from './service.js';
 
 /**
  * reviews module.
- *   POST   /pulls/:id/review  {agentId} | {all:true}  → run review(s); returns runs
+ *   POST   /pulls/:id/review  {agentIds} | {all:true} | {agentId}
+ *                                                      → run review(s); returns runs (+ multi_agent_run_id)
  *   GET    /runs/:id/events                            → SSE stream of RunEvent (replay-first)
  *   GET    /runs/:id/trace                             → the single-document RunTrace
  *   GET    /pulls/:id/reviews                          → persisted reviews + findings for a PR
@@ -35,17 +36,19 @@ export default async function reviewsRoutes(appBase: FastifyInstance) {
     async (req) => {
     const { workspaceId } = await getContext(container, req);
     const body = req.body ?? {};
-    const targets = await service.resolveTargets(workspaceId, {
+    const { targets, grouped } = await service.resolveTargets(workspaceId, {
+      ...(body.agentIds !== undefined ? { agentIds: body.agentIds } : {}),
       ...(body.agentId !== undefined ? { agentId: body.agentId } : {}),
       ...(body.all !== undefined ? { all: body.all } : {}),
     });
-    const { runs, reviews } = await service.runReview(
+    const { runs, reviews, multi_agent_run_id } = await service.runReview(
       workspaceId,
       req.params.id,
       targets,
       req.log,
+      { grouped },
     );
-    return { pr_id: req.params.id, runs, reviews };
+    return { pr_id: req.params.id, runs, reviews, multi_agent_run_id };
   });
 
   // ---- SSE: live run events (replay buffer first, then live; ends on done) -

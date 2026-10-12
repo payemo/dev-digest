@@ -1,0 +1,60 @@
+import type { CSSProperties } from "react";
+
+/** Co-located styles for Disagreements. */
+export const s = {
+  root: { display: "flex", flexDirection: "column", gap: 10 },
+  head: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  heading: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    fontSize: 11.5,
+    fontWeight: 600,
+    letterSpacing: "0.06em",
+    textTransform: "uppercase",
+    color: "var(--text-muted)",
+  },
+  toggle: { display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "var(--text-secondary)" },
+  row: {
+    border: "1px solid var(--border)",
+    borderRadius: 8,
+    background: "var(--bg-surface)",
+    overflow: "hidden",
+  },
+  rowHead: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    padding: "10px 14px",
+    borderBottom: "1px solid var(--border)",
+    fontSize: 13,
+  },
+  loc: { fontFamily: "var(--font-mono, monospace)", color: "var(--text-primary)" },
+  title: { fontWeight: 600, color: "var(--text-primary)" },
+  cells: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" },
+  cell: {
+    padding: "10px 14px",
+    borderRight: "1px solid var(--border)",
+    display: "flex",
+    flexDirection: "column",
+    gap: 4,
+    minWidth: 0,
+  },
+  agent: { fontSize: 12.5, color: "var(--text-secondary)" },
+  kind: (color: string): CSSProperties => ({
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    fontSize: 12,
+    color,
+  }),
+  dot: (color: string): CSSProperties => ({
+    width: 7,
+    height: 7,
+    borderRadius: 999,
+    background: color,
+    flexShrink: 0,
+  }),
+  note: { fontSize: 12, color: "var(--text-muted)", wordBreak: "break-word" },
+  empty: { fontSize: 13, color: "var(--text-muted)", padding: "8px 2px" },
+} satisfies Record<string, CSSProperties | ((...args: never[]) => CSSProperties)>;

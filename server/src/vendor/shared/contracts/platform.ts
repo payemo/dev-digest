@@ -301,6 +301,8 @@ export type IndexStatus = z.infer<typeof IndexStatus>;
 export const RunRequest = z.object({
   agentId: z.string().optional(),
   all: z.boolean().optional(),
+  /** Multi-agent run: these enabled agents run concurrently under one parent. */
+  agentIds: z.array(z.string().uuid()).min(1).optional(),
 });
 export type RunRequest = z.infer<typeof RunRequest>;
 

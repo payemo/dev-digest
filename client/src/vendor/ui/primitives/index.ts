@@ -8,7 +8,7 @@ export { Avatar } from "./Avatar";
 export { ConfidenceNum } from "./ConfidenceNum";
 export { MonoLink } from "./MonoLink";
 export { ProgressBar, PercentProgress } from "./ProgressBar";
-export { CircularScore } from "./CircularScore";
+export { CircularScore, scoreColor } from "./CircularScore";
 export { Toggle } from "./Toggle";
 export { Kbd } from "./Kbd";
 export { SectionLabel } from "./SectionLabel";

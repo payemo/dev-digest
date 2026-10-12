@@ -30,3 +30,14 @@ export function formatTokenCount(n: number): string {
 export function formatTokensCompact(tokensIn: number, tokensOut: number): string {
   return `${(tokensIn / 1000).toFixed(1)}K→${(tokensOut / 1000).toFixed(1)}K`;
 }
+
+/**
+ * A time estimate in seconds with one decimal, e.g. 8200 → "8.2s". Returns
+ * null for an unknown estimate so the caller renders its own "no estimate"
+ * string — never a misleading "0.0s". Shared by the PR-page agent picker and
+ * Multi-Agent Review.
+ */
+export function formatDurationEstimate(ms: number | null | undefined): string | null {
+  if (ms == null || !Number.isFinite(ms)) return null;
+  return `${(ms / 1000).toFixed(1)}s`;
+}

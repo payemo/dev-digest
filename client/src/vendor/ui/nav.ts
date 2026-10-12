@@ -28,6 +28,9 @@ export const NAV: NavGroup[] = [
       // messages/en/shell.json under `nav.context` — the sidebar prints this
       // literal while the command palette re-translates that key.
       { key: "context", label: "Project Context", icon: "FileText", href: "/repos/:repoId/context" },
+      // No gKey, same reasoning as `context` above. The label is duplicated in
+      // messages/en/shell.json under `nav.multi-agent`.
+      { key: "multi-agent", label: "Multi-Agent Review", icon: "Users", href: "/repos/:repoId/multi-agent" },
     ],
   },
   {

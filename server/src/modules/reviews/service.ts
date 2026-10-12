@@ -1,6 +1,6 @@
 import type { Container } from '../../platform/container.js';
 import type { FindingActionKind, RunEventKind, RunSummary, RunTrace } from '@devdigest/shared';
-import { AppError, NotFoundError } from '../../platform/errors.js';
+import { AppError, NotFoundError, ValidationError } from '../../platform/errors.js';
 import type { AgentRow } from '../../db/rows.js';
 import { ReviewRepository } from './repository.js';
 import { type ReviewDto, type ReviewDtoFinding } from './helpers.js';
@@ -42,19 +42,37 @@ export class ReviewService {
   // ===========================================================================
 
   /**
-   * Resolve which agents to run. `all` → all enabled agents; else a single agent.
+   * Resolve which agents to run. Precedence: `agentIds` > `all` > `agentId`.
+   *  - `agentIds` → exactly those agents; every id must be an ENABLED agent of
+   *    this workspace (unknown, foreign or disabled ids → 422). Grouped.
+   *  - `all` → every enabled agent (none → 422, so no empty parent). Grouped.
+   *  - `agentId` → that one agent, ungrouped (legacy / MCP path, no parent).
    */
   async resolveTargets(
     workspaceId: string,
-    opts: { agentId?: string; all?: boolean },
-  ): Promise<AgentRow[]> {
-    if (opts.all) return this.agents.listEnabled(workspaceId);
+    opts: { agentIds?: string[]; agentId?: string; all?: boolean },
+  ): Promise<{ targets: AgentRow[]; grouped: boolean }> {
+    if (opts.agentIds) {
+      const ids = [...new Set(opts.agentIds)];
+      const found = await this.agents.listByIds(workspaceId, ids);
+      const enabled = new Map(found.filter((a) => a.enabled).map((a) => [a.id, a]));
+      const rejected = ids.filter((id) => !enabled.has(id));
+      if (rejected.length > 0) {
+        throw new ValidationError('Unknown or disabled agent(s)', { agentIds: rejected });
+      }
+      return { targets: ids.map((id) => enabled.get(id)!), grouped: true };
+    }
+    if (opts.all) {
+      const targets = await this.agents.listEnabled(workspaceId);
+      if (targets.length === 0) throw new ValidationError('No enabled agents');
+      return { targets, grouped: true };
+    }
     if (opts.agentId) {
       const agent = await this.agents.getById(workspaceId, opts.agentId);
       if (!agent) throw new NotFoundError('Agent not found');
-      return [agent];
+      return { targets: [agent], grouped: false };
     }
-    throw new AppError('invalid_run_request', 'Provide agentId or all:true', 400);
+    throw new AppError('invalid_run_request', 'Provide agentIds, agentId or all:true', 400);
   }
 
   /** Delete a whole review run (one agent's pass) + its findings (cascade). */
@@ -111,14 +129,20 @@ export class ReviewService {
    * Run a review for each target agent. Each agent gets its own runId
    * (= agent_runs.id) created up-front so the SSE route can be subscribed
    * before/while the run progresses. A partial failure in one agent does not
-   * abort the others.
+   * abort the others. When `grouped`, the rows are created under one
+   * `multi_agent_runs` parent in a single transaction.
    */
   async runReview(
     workspaceId: string,
     prId: string,
     targets: AgentRow[],
     logger?: Logger,
-  ): Promise<{ runs: { run_id: string; agent_id: string; agent_name: string }[]; reviews: ReviewDto[] }> {
+    opts: { grouped?: boolean } = {},
+  ): Promise<{
+    runs: { run_id: string; agent_id: string; agent_name: string }[];
+    reviews: ReviewDto[];
+    multi_agent_run_id: string | null;
+  }> {
     const pull = await this.repo.getPull(workspaceId, prId);
     if (!pull) throw new NotFoundError('Pull request not found');
     const repo = await this.repo.getRepo(pull.repoId);
@@ -129,16 +153,31 @@ export class ReviewService {
     // stream. The actual (slow) review runs in the background below.
     const runs: { run_id: string; agent_id: string; agent_name: string }[] = [];
     const jobs: { agent: AgentRow; runId: string }[] = [];
-    for (const agent of targets) {
-      const runId = await this.repo.createAgentRun({
+    let multiAgentRunId: string | null = null;
+    if (opts.grouped) {
+      const created = await this.repo.createMultiAgentRunWithChildren({
         workspaceId,
-        agentId: agent.id,
         prId,
-        provider: agent.provider,
-        model: agent.model,
+        children: targets.map((a) => ({ agentId: a.id, provider: a.provider, model: a.model })),
       });
-      runs.push({ run_id: runId, agent_id: agent.id, agent_name: agent.name });
-      jobs.push({ agent, runId });
+      multiAgentRunId = created.multiAgentRunId;
+      targets.forEach((agent, i) => {
+        const runId = created.runIds[i]!;
+        runs.push({ run_id: runId, agent_id: agent.id, agent_name: agent.name });
+        jobs.push({ agent, runId });
+      });
+    } else {
+      for (const agent of targets) {
+        const runId = await this.repo.createAgentRun({
+          workspaceId,
+          agentId: agent.id,
+          prId,
+          provider: agent.provider,
+          model: agent.model,
+        });
+        runs.push({ run_id: runId, agent_id: agent.id, agent_name: agent.name });
+        jobs.push({ agent, runId });
+      }
     }
 
     // Fire-and-forget: the HTTP response returns now with the runIds; reviews
@@ -147,7 +186,7 @@ export class ReviewService {
       logger?.error({ prId, err: (err as Error).message }, 'review: background execution crashed');
     });
 
-    return { runs, reviews: [] };
+    return { runs, reviews: [], multi_agent_run_id: multiAgentRunId };
   }
 
   private publish(runId: string, kind: RunEventKind, msg: string, data?: unknown) {

@@ -6,35 +6,73 @@ import { skills } from './skills';
 
 // ============================================================ Observability
 
-export const agentRuns = pgTable('agent_runs', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  workspaceId: uuid('workspace_id')
-    .notNull()
-    .references(() => workspaces.id, { onDelete: 'cascade' }),
-  agentId: uuid('agent_id').references(() => agents.id, { onDelete: 'set null' }),
-  prId: uuid('pr_id').references(() => pullRequests.id, { onDelete: 'set null' }),
-  ranAt: timestamp('ran_at', { withTimezone: true }).defaultNow().notNull(),
-  provider: text('provider'),
-  model: text('model'),
-  durationMs: integer('duration_ms'),
-  tokensIn: integer('tokens_in'),
-  tokensOut: integer('tokens_out'),
-  /** Provider-reported billed cost (e.g. OpenRouter's usage.cost); null when
-   *  the provider didn't report one — derived on read from model + tokens. */
-  costUsd: doublePrecision('cost_usd'),
-  status: text('status', { enum: ['running', 'done', 'failed', 'cancelled'] })
-    .notNull()
-    .default('running'),
-  /** Failure reason when status='failed' (LLM/API error, timeout, quota, …). */
-  error: text('error'),
-  source: text('source', { enum: ['local', 'ci'] }).notNull().default('local'),
-  findingsCount: integer('findings_count'),
-  grounding: text('grounding'),
-  /** Review score (0-100) for this run; null on failed/cancelled runs. */
-  score: integer('score'),
-  /** Findings that tripped the agent's gate (severity ≥ ciFailOn). */
-  blockers: integer('blockers'),
-});
+/**
+ * Groups the children of one multi-agent run: one row per run started from the
+ * picker / Configure run (`{agentIds}`) or "Run all enabled" (`{all}`), with
+ * every child `agent_runs` row pointing back via `multi_agent_run_id`. CI runs
+ * and the legacy single-agent `{agentId}` path never get a parent.
+ *
+ * Defined before `agentRuns` so the child FK can reference it.
+ */
+export const multiAgentRuns = pgTable(
+  'multi_agent_runs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    prId: uuid('pr_id')
+      .notNull()
+      .references(() => pullRequests.id, { onDelete: 'cascade' }),
+    ranAt: timestamp('ran_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    // Latest-per-PR and latest-per-repo lookups order by ran_at within a PR.
+    wsPrRanAtIdx: index('multi_agent_runs_ws_pr_ran_at_idx').on(t.workspaceId, t.prId, t.ranAt),
+  }),
+);
+
+export const agentRuns = pgTable(
+  'agent_runs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    agentId: uuid('agent_id').references(() => agents.id, { onDelete: 'set null' }),
+    prId: uuid('pr_id').references(() => pullRequests.id, { onDelete: 'set null' }),
+    ranAt: timestamp('ran_at', { withTimezone: true }).defaultNow().notNull(),
+    provider: text('provider'),
+    model: text('model'),
+    durationMs: integer('duration_ms'),
+    tokensIn: integer('tokens_in'),
+    tokensOut: integer('tokens_out'),
+    /** Provider-reported billed cost (e.g. OpenRouter's usage.cost); null when
+     *  the provider didn't report one — derived on read from model + tokens. */
+    costUsd: doublePrecision('cost_usd'),
+    status: text('status', { enum: ['running', 'done', 'failed', 'cancelled'] })
+      .notNull()
+      .default('running'),
+    /** Failure reason when status='failed' (LLM/API error, timeout, quota, …). */
+    error: text('error'),
+    source: text('source', { enum: ['local', 'ci'] }).notNull().default('local'),
+    findingsCount: integer('findings_count'),
+    grounding: text('grounding'),
+    /** Review score (0-100) for this run; null on failed/cancelled runs. */
+    score: integer('score'),
+    /** Findings that tripped the agent's gate (severity ≥ ciFailOn). */
+    blockers: integer('blockers'),
+    /** Parent multi-agent run; null for CI runs and single-agent runs. `set null`
+     *  so deleting a parent never deletes run history. */
+    multiAgentRunId: uuid('multi_agent_run_id').references(() => multiAgentRuns.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (t) => ({
+    // Postgres does not auto-index FKs; children are loaded by parent id.
+    multiAgentRunIdx: index('agent_runs_multi_agent_run_id_idx').on(t.multiAgentRunId),
+  }),
+);
 
 /** Whole trace of one run as a SINGLE jsonb document. */
 export const runTraces = pgTable('run_traces', {
@@ -74,14 +112,3 @@ export const runSkills = pgTable(
     skillIdx: index('run_skills_skill_id_idx').on(t.skillId),
   }),
 );
-
-export const multiAgentRuns = pgTable('multi_agent_runs', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  workspaceId: uuid('workspace_id')
-    .notNull()
-    .references(() => workspaces.id, { onDelete: 'cascade' }),
-  prId: uuid('pr_id')
-    .notNull()
-    .references(() => pullRequests.id, { onDelete: 'cascade' }),
-  ranAt: timestamp('ran_at', { withTimezone: true }).defaultNow().notNull(),
-});
