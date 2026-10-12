@@ -1,0 +1,80 @@
+# agent-runner suite — the bundled CI runner (@devdigest/agent-runner) that
+# Export to CI ships into target repos as `.devdigest/runner.mjs`.
+# Typecheck, hermetic tests (LLM stubbed), and the ncc build that produces the
+# shipped single-file ESM bundle. Uses pnpm (pnpm-lock.yaml).
+#
+# reviewer-core/src/** and server/src/vendor/shared/** are in the path filter
+# because agent-runner aliases both as raw TypeScript source and ncc inlines
+# them into the bundle. Their deps (zod, openai) resolve from each package's
+# own node_modules — this repo has no workspace — so both get installed below.
+name: agent-runner
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'agent-runner/**'
+      - 'reviewer-core/src/**'
+      - 'server/src/vendor/shared/**'
+      - '.github/workflows/agent-runner.yml'
+      - '!**/INSIGHTS.md'
+  pull_request:
+    paths:
+      - 'agent-runner/**'
+      - 'reviewer-core/src/**'
+      - 'server/src/vendor/shared/**'
+      - '.github/workflows/agent-runner.yml'
+      - '!**/INSIGHTS.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agent-runner-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: typecheck, tests, bundle
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: agent-runner
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # reviewer-core's raw source imports `zod`/`openai`; they resolve from
+      # reviewer-core/node_modules. It uses npm (see reviewer-core.yml).
+      - name: Install reviewer-core deps
+        working-directory: reviewer-core
+        run: npm ci
+
+      # The shared contracts (server/src/vendor/shared) import `zod`, which
+      # resolves from server/node_modules.
+      - name: Install server deps
+        working-directory: server
+        run: pnpm install --frozen-lockfile
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm typecheck
+
+      - run: pnpm test
+
+      - run: pnpm build
+
+      - name: Bundle exists and is ESM
+        run: |
+          test -s dist/index.js
+          head -c 200 dist/index.js | grep -q '^import ' || {
+            echo "::error::dist/index.js is not an ES module; the exported .devdigest/runner.mjs would fail to load"
+            exit 1
+          }

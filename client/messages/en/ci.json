@@ -11,7 +11,10 @@
       "last7Days": "Last 7 days",
       "allAgents": "All agents",
       "allRepos": "All repos",
-      "allStatuses": "All statuses"
+      "allStatuses": "All statuses",
+      "last1Day": "Last 24 hours",
+      "last30Days": "Last 30 days",
+      "last90Days": "Last 90 days"
     },
     "table": {
       "timestamp": "Timestamp",
@@ -19,7 +22,12 @@
       "source": "Source",
       "findings": "Findings",
       "cost": "Cost",
-      "status": "Status"
+      "status": "Status",
+      "repository": "Repository",
+      "agent": "Agent",
+      "verdict": "Verdict",
+      "duration": "Duration",
+      "job": "Job"
     },
     "view": "View",
     "status": {
@@ -27,6 +35,19 @@
       "noFindings": "No findings",
       "failed": "Failed",
       "running": "Running"
+    },
+    "viewJob": "View job",
+    "unverified": "unverified",
+    "unverifiedHint": "The files this run executed differ from the version DevDigest installed.",
+    "reportedByCi": "reported by CI",
+    "ciReported": "CI reported {count}",
+    "loadError": "Couldn't load CI runs.",
+    "syncSummary": "Synced: {ingested} new, {rejected} rejected",
+    "syncFailed": "Couldn't sync from GitHub: {message}",
+    "verdicts": {
+      "REQUEST_CHANGES": "Request changes",
+      "COMMENT": "Comment",
+      "APPROVE": "Approve"
     }
   },
   "exportWizard": {
@@ -65,14 +86,35 @@
     "postAs": {
       "githubReview": "GitHub review",
       "prComment": "PR comment",
-      "none": "None (exit code only)"
+      "none": "None (exit code only)",
+      "recommended": "recommended"
     },
-    "blockMergeTitle": "Block merge on findings",
-    "blockMergeDesc": "Requires a GitHub App — not available with PAT in local mode",
     "installCardTitle": "Open a PR with these files",
     "installCardBody": "DevDigest opens a PR in {repo} titled “Add DevDigest CI review” with the {count} generated files.",
     "ownerRepo": "owner/repo",
-    "secretNote": "Add {key} to the repo's Actions secrets before the workflow runs."
+    "secretNote": "Add {key} to the repo's Actions secrets before the workflow runs.",
+    "blockMergeNote": "To block merges: set <b>Fail CI on</b> (CI tab) so the run exits non-zero, then add a <b>required status check</b> in the repo's GitHub branch protection. No GitHub App needed.",
+    "comingSoon": "coming soon",
+    "noRepos": "Import a repository first — CI can only be added to imported repos.",
+    "previewLoading": "Generating files…",
+    "previewError": "Couldn't generate the files.",
+    "runnerFile": "generated bundle · {size} · not editable",
+    "readOnly": "read-only",
+    "resetWorkflow": "Reset to generated",
+    "editedWorkflow": "edited",
+    "confirmRegenerate": "Regenerate the workflow? Your edits will be lost.",
+    "triggerRequired": "Pick at least one trigger.",
+    "installZipTitle": "Copy files as a zip",
+    "installZipHint": "add them manually",
+    "setupDocsPrefix": "Need help? See the",
+    "setupDocs": "GitHub Action setup docs",
+    "successPrTitle": "Pull request ready",
+    "successPrBody": "DevDigest committed the files to {branch} in {repo}.",
+    "viewPr": "View pull request",
+    "successZipTitle": "Zip downloaded",
+    "successZipBody": "Add the files to {repo} and commit them yourself.",
+    "done": "Done",
+    "close": "Close"
   },
   "ciTab": {
     "heading": "Continuous Integration",
@@ -82,7 +124,38 @@
     "update": "Update CI",
     "noRepo": "Connect a repository first",
     "empty": "Not deployed to CI yet. Use “Publish to CI” to open a PR that adds the workflow + agent config.",
-    "installed": "installed {date}"
+    "installed": "installed {date}",
+    "title": "CI deployment",
+    "activeIn": "Active in {count, plural, one {# repo} other {# repos}}",
+    "updateConfig": "Update CI config",
+    "addToCi": "Add to CI",
+    "addRepository": "Add repository",
+    "failOnTitle": "Fail CI on",
+    "failOnBody": "Exit non-zero when a finding at or above this severity lands. Pair with a required status check to block merges.",
+    "failOn": {
+      "critical": "Critical",
+      "warning": "Warning +",
+      "never": "Never",
+      "any": "Any finding (set in Config)"
+    },
+    "updateAvailable": "Update available",
+    "unverifiedRun": "Unverified run",
+    "unverifiedHint": "The last run executed files that differ from the installed version.",
+    "noRuns": "no runs yet",
+    "viewPr": "PR",
+    "versions": "workflow v{workflow} · agent v{manifest} · runner {runner}",
+    "zipInstall": "installed manually (zip)",
+    "historyTitle": "Recent CI runs",
+    "viewAllRuns": "View all CI runs",
+    "updatedToast": "Updated {count, plural, one {# installation} other {# installations}}",
+    "updateFailed": "Couldn't update the CI config: {message}",
+    "loadError": "Couldn't load the CI deployment.",
+    "lastRun": {
+      "succeeded": "succeeded",
+      "failed": "failed",
+      "no_findings": "no findings",
+      "running": "running"
+    }
   },
   "publishDialog": {
     "title": "Publish to CI",

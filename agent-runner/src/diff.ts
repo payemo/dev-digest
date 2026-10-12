@@ -5,7 +5,7 @@ import type { UnifiedDiff, DiffHunk } from '@devdigest/shared';
  * These are DevDigest's own exported artifacts, not the target repo's code:
  *
  *  - `.devdigest/` — the checked-in agent config AND the ncc runner bundle
- *    (`.devdigest/runner/index.js`), a single minified megafile. GitHub rejects
+ *    (`.devdigest/runner.mjs`), a single minified megafile. GitHub rejects
  *    an inline comment on such a file with 422 "diff too large" and — because a
  *    review is all-or-nothing — fails the ENTIRE review. This prefix is the fix
  *    for that 422; it only ever appears in the diff of the export/update PR

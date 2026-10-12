@@ -7,6 +7,7 @@ import type {
   Embedder,
   LLMProvider,
   ProjectDocSource,
+  RunnerBundleSource,
 } from '@devdigest/shared';
 import type { AppConfig } from './config.js';
 import type { Db } from '../db/client.js';
@@ -35,6 +36,7 @@ import { BlastService } from '../modules/blast/service.js';
 import { type DepGraph, DepCruiseGraph } from '../adapters/depgraph/index.js';
 import { type Tokenizer, TiktokenTokenizer } from '../adapters/tokenizer/index.js';
 import { CloneDocSource } from '../adapters/docsource/clone.js';
+import { LocalRunnerBundleSource } from '../adapters/runner-bundle/local.js';
 import { ProjectContextService } from '../modules/project-context/service.js';
 
 /**
@@ -60,6 +62,8 @@ export interface ContainerOverrides {
   tokenizer?: Tokenizer;
   /** project-context document scan — tests inject a fixture-backed MockDocSource. */
   docSource?: ProjectDocSource;
+  /** Export-to-CI runner bundle — tests inject a MockRunnerBundleSource. */
+  runnerBundle?: RunnerBundleSource;
 }
 
 export class Container {
@@ -91,6 +95,7 @@ export class Container {
   private _blast?: BlastService;
   private _docSource?: ProjectDocSource;
   private _projectContext?: ProjectContextService;
+  private _runnerBundle?: RunnerBundleSource;
 
   constructor(config: AppConfig, db: Db, private overrides: ContainerOverrides = {}) {
     this.config = config;
@@ -191,6 +196,17 @@ export class Container {
    */
   get projectContext(): ProjectContextService {
     return (this._projectContext ??= new ProjectContextService(this));
+  }
+
+  /**
+   * The built agent-runner bundle that Export to CI ships as
+   * `.devdigest/runner.mjs`. Read from disk (path from config); null when the
+   * bundle has not been built.
+   */
+  get runnerBundle(): RunnerBundleSource {
+    if (this.overrides.runnerBundle) return this.overrides.runnerBundle;
+    this._runnerBundle ??= new LocalRunnerBundleSource(this.config.agentRunnerBundlePath);
+    return this._runnerBundle;
   }
 
   /** Import-graph builder (dependency-cruiser). T3 indexer pipeline only. */

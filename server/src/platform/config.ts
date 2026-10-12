@@ -1,7 +1,11 @@
 import 'dotenv/config';
 import { z } from 'zod';
 import { homedir } from 'node:os';
-import { join, isAbsolute, resolve } from 'node:path';
+import { join, isAbsolute, resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+/** `server/` — this file lives at `server/src/platform/config.ts`. */
+const SERVER_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 /**
  * Central, zod-validated environment config. Loaded once at startup.
@@ -34,6 +38,9 @@ const EnvSchema = z.object({
   API_HOST: z.string().default('127.0.0.1'),
   WEB_PORT: z.coerce.number().int().default(3000),
   DEVDIGEST_CLONE_DIR: z.string().optional(),
+  // Path to the built agent-runner bundle exported into CI installs (a path,
+  // not a secret). Default: the sibling package's ncc output.
+  DEVDIGEST_AGENT_RUNNER_BUNDLE: z.string().optional(),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   // `.env` (and .env.example) ship `LOG_LEVEL=` empty; an empty string is not a
   // valid enum member, so coerce '' → undefined to fall through to the default.
@@ -66,6 +73,8 @@ export type AppConfig = {
    * EXACTLY like the ripgrep-only baseline.
    */
   repoIntelEnabled: boolean;
+  /** Absolute path of the ncc-built agent-runner bundle shipped by Export to CI. */
+  agentRunnerBundlePath: string;
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -73,6 +82,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const cloneDirRaw =
     parsed.DEVDIGEST_CLONE_DIR ?? join(homedir(), '.devdigest', 'workspace');
   const cloneDir = isAbsolute(cloneDirRaw) ? cloneDirRaw : resolve(process.cwd(), cloneDirRaw);
+  const bundleRaw =
+    parsed.DEVDIGEST_AGENT_RUNNER_BUNDLE ?? resolve(SERVER_DIR, '../agent-runner/dist/index.js');
+  const agentRunnerBundlePath = isAbsolute(bundleRaw) ? bundleRaw : resolve(process.cwd(), bundleRaw);
   return {
     databaseUrl: parsed.DATABASE_URL,
     apiPort: parsed.API_PORT,
@@ -85,5 +97,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     webOrigin: `http://localhost:${parsed.WEB_PORT}`,
     embeddingsEnabled: parsed.EMBEDDINGS_ENABLED === 'true',
     repoIntelEnabled: parsed.REPO_INTEL_ENABLED !== 'false',
+    agentRunnerBundlePath,
   };
 }

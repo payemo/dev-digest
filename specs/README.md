@@ -58,3 +58,4 @@ to `implementation-planner`, which reads this table first.
 | [02-project-context.md](02-project-context.md) | `server/` · `client/` · `reviewer-core/` · shared contracts | implemented (2026-09-29) |
 | [03-pr-brief.md](03-pr-brief.md) | `server/` · `client/` · shared contracts | draft (2026-09-30) |
 | [04-eval-pipeline.md](04-eval-pipeline.md) | `server/` · `client/` · shared contracts | draft (2026-10-07) |
+| [05-export-to-ci.md](05-export-to-ci.md) | `server/` · `client/` · `agent-runner/` · shared contracts | draft (2026-10-11) |

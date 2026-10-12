@@ -34,7 +34,13 @@ import type {
   ProjectDocFile,
   ProjectDocScan,
   ProjectDocSource,
+  WorkflowRunInfo,
+  WorkflowArtifactInfo,
+  ArtifactLimits,
+  RunnerBundle,
+  RunnerBundleSource,
 } from '@devdigest/shared';
+import { ArtifactTooLargeError } from '@devdigest/shared';
 import { parseUnifiedDiff } from './git/diff-parser.js';
 
 /**
@@ -137,6 +143,25 @@ export interface MockGitHubOptions {
   login?: string;
   /** Existing inline review comments returned by listReviewComments. */
   comments?: PrReviewComment[];
+  /** Default branch returned by getRepoDefaultBranch (default "main"). */
+  defaultBranch?: string;
+  /** Workflow runs returned by listWorkflowRuns (all repos/workflows). */
+  workflowRuns?: WorkflowRunInfo[];
+  /** Artifacts per run id, returned by listRunArtifacts. */
+  runArtifacts?: Record<number, WorkflowArtifactInfo[]>;
+  /**
+   * Artifact file contents per artifact id: the text of `devdigest-result.json`,
+   * `null` for "entry absent", or `'too_large'` to simulate a size-cap breach.
+   */
+  artifactFiles?: Record<number, string | null | 'too_large'>;
+  /** Blob SHAs per ref → path; a missing path resolves to null. */
+  blobShas?: Record<string, Record<string, string>>;
+  /** PR base commit per PR number, returned by getPullBaseSha; missing → null. */
+  pullBaseShas?: Record<number, string>;
+  /** Compare diff per "base...head"; missing → null (unavailable). */
+  compareDiffs?: Record<string, string>;
+  /** When set, every Actions call throws this (simulates a missing scope). */
+  actionsError?: Error;
 }
 
 export class MockGitHubClient implements GitHubClient {
@@ -248,6 +273,81 @@ export class MockGitHubClient implements GitHubClient {
 
   async currentLogin(): Promise<string> {
     return this.opts.login ?? 'mock-user';
+  }
+
+  async getRepoDefaultBranch(_repo: RepoRef): Promise<string> {
+    return this.opts.defaultBranch ?? 'main';
+  }
+
+  async listWorkflowRuns(
+    _repo: RepoRef,
+    _workflowPath: string,
+    opts: { perPage: number },
+  ): Promise<WorkflowRunInfo[]> {
+    if (this.opts.actionsError) throw this.opts.actionsError;
+    return (this.opts.workflowRuns ?? []).slice(0, opts.perPage);
+  }
+
+  async listRunArtifacts(_repo: RepoRef, runId: number): Promise<WorkflowArtifactInfo[]> {
+    if (this.opts.actionsError) throw this.opts.actionsError;
+    return this.opts.runArtifacts?.[runId] ?? [];
+  }
+
+  async downloadArtifactFile(
+    _repo: RepoRef,
+    artifactId: number,
+    _fileName: string,
+    limits: ArtifactLimits,
+  ): Promise<string | null> {
+    if (this.opts.actionsError) throw this.opts.actionsError;
+    const file = this.opts.artifactFiles?.[artifactId];
+    if (file === 'too_large') {
+      throw new ArtifactTooLargeError(`mock artifact exceeds ${limits.maxFileBytes} bytes`);
+    }
+    if (file != null && Buffer.byteLength(file, 'utf8') > limits.maxFileBytes) {
+      throw new ArtifactTooLargeError(`mock artifact exceeds ${limits.maxFileBytes} bytes`);
+    }
+    return file ?? null;
+  }
+
+  async getBlobShas(
+    _repo: RepoRef,
+    ref: string,
+    paths: string[],
+  ): Promise<Record<string, string | null>> {
+    const atRef = this.opts.blobShas?.[ref] ?? {};
+    return Object.fromEntries(paths.map((p) => [p, atRef[p] ?? null]));
+  }
+
+  async getPullBaseSha(_repo: RepoRef, n: number): Promise<string | null> {
+    return this.opts.pullBaseShas?.[n] ?? null;
+  }
+
+  async getCompareDiff(
+    _repo: RepoRef,
+    base: string,
+    head: string,
+    maxBytes: number,
+  ): Promise<string | null> {
+    const diff = this.opts.compareDiffs?.[`${base}...${head}`];
+    if (diff == null || Buffer.byteLength(diff, 'utf8') > maxBytes) return null;
+    return diff;
+  }
+}
+
+// ---------- Mock runner bundle ----------
+/** A fixed, tiny "bundle" (or `null` = not built) for Export-to-CI tests. */
+export class MockRunnerBundleSource implements RunnerBundleSource {
+  constructor(
+    private bundle: RunnerBundle | null = {
+      contents: "// mock agent-runner bundle\nconst RUNNER_VERSION = '2';\n",
+      sha256: 'mock-runner-sha256',
+      version: '2',
+    },
+  ) {}
+
+  async read(): Promise<RunnerBundle | null> {
+    return this.bundle;
   }
 }
 

@@ -16,6 +16,9 @@ export interface CiEnv {
   GITHUB_REPOSITORY?: string;
   PR_NUMBER?: string;
   GITHUB_EVENT_PATH?: string;
+  /** Default GitHub Actions runtime vars — recorded in the result artifact. */
+  GITHUB_RUN_ID?: string;
+  GITHUB_RUN_ATTEMPT?: string;
   [key: string]: string | undefined;
 }
 
@@ -30,6 +33,12 @@ export interface PrContext {
   /** True when the PR head is a fork — informational only; the workflow
    *  itself is responsible for never scheduling this job for fork PRs. */
   isFork: boolean;
+  /** PR head / base commits from the event payload; null when absent. */
+  headSha: string | null;
+  baseSha: string | null;
+  /** This workflow run's id + attempt; null outside GitHub Actions. */
+  runId: number | null;
+  runAttempt: number | null;
 }
 
 interface PullRequestEventPayload {
@@ -37,7 +46,8 @@ interface PullRequestEventPayload {
     number?: number;
     title?: string;
     body?: string | null;
-    head?: { repo?: { fork?: boolean } | null };
+    head?: { sha?: string; repo?: { fork?: boolean } | null };
+    base?: { sha?: string };
   };
 }
 
@@ -90,5 +100,14 @@ export function resolvePrContext(
     title: pr?.title ?? '',
     body: pr?.body ?? '',
     isFork: pr?.head?.repo?.fork ?? false,
+    headSha: typeof pr?.head?.sha === 'string' ? pr.head.sha : null,
+    baseSha: typeof pr?.base?.sha === 'string' ? pr.base.sha : null,
+    runId: positiveInt(env.GITHUB_RUN_ID),
+    runAttempt: positiveInt(env.GITHUB_RUN_ATTEMPT),
   };
+}
+
+function positiveInt(value: string | undefined): number | null {
+  const n = value ? Number(value) : NaN;
+  return Number.isSafeInteger(n) && n > 0 ? n : null;
 }

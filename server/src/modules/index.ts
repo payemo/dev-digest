@@ -16,6 +16,7 @@ import projectContext from './project-context/routes.js';
 import brief from './brief/routes.js';
 // `eval` is not a valid ESM binding name, hence `evals`.
 import evals from './eval/routes.js';
+import ci from './ci/routes.js';
 
 /**
  * Module registry. Each feature module is a Fastify plugin in
@@ -47,4 +48,5 @@ export const modules: Record<string, FastifyPluginAsync> = {
   projectContext,
   brief,
   evals,
+  ci,
 };

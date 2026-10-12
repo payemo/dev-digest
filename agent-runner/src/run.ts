@@ -1,12 +1,15 @@
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import type { LLMProvider, GitHubReviewPayload, CiResultArtifact } from '@devdigest/shared';
 import { reviewPullRequest, toReviewPayload, gateTriggered, countBlockers } from '@devdigest/reviewer-core';
-import { loadManifest } from './manifest.js';
+import { findManifestPath, loadAgentManifestWithRaw } from './manifest.js';
 import { loadSkillBodies } from './skills.js';
+import { loadMemory } from './memory.js';
 import { resolvePrContext, type CiEnv } from './context.js';
 import { parseUnifiedDiff, stripIgnoredFiles } from './diff.js';
 import { fetchPrDiff, postGithubReview, postPrComment, type FetchLike } from './github.js';
-import { buildResultArtifact } from './artifact.js';
+import { buildResultArtifact, RUNNER_VERSION } from './artifact.js';
+import reviewerCorePkg from '../../reviewer-core/package.json';
 import { RunnerError } from './errors.js';
 
 /**
@@ -44,6 +47,13 @@ export interface RunCiDeps {
   postAs: PostAs;
   /** Absolute path to write the `CiResultArtifact` JSON to. */
   resultPath: string;
+  /**
+   * Which `agents/<slug>.yaml` to run (`review --agent <slug>`). Omitted =
+   * the original exactly-one-manifest rule.
+   */
+  agentSlug?: string;
+  /** Node version recorded in the artifact (the CLI passes `process.version`). */
+  nodeVersion?: string;
   fetchImpl?: FetchLike;
   readFile?: typeof readFileSync;
   readDir?: typeof readdirSync;
@@ -90,8 +100,13 @@ export async function runCi(deps: RunCiDeps): Promise<RunCiResult> {
 
   try {
     // 1. Load + validate the manifest BEFORE it is used for anything (AC-20).
-    const manifest = loadManifest(deps.devdigestDir, { readFile, readDir });
+    const manifestPath = findManifestPath(deps.devdigestDir, { readFile, readDir }, deps.agentSlug);
+    const loaded = loadAgentManifestWithRaw(manifestPath, { readFile, readDir });
+    const manifest = loaded.manifest;
+    const manifestSha256 = createHash('sha256').update(loaded.raw, 'utf8').digest('hex');
     const skills = loadSkillBodies(deps.devdigestDir, manifest.skills, readFile);
+    // Curated memory exported by the studio; a missing file means none.
+    const memory = loadMemory(deps.devdigestDir, readFile);
 
     // 2. Resolve CI context (PR number/title/body/repo) from env + event payload.
     const ctx = resolvePrContext(deps.env, readFile);
@@ -122,6 +137,7 @@ export async function runCi(deps: RunCiDeps): Promise<RunCiResult> {
       llm: deps.llm,
       strategy: manifest.strategy,
       skills,
+      ...(memory.items.length > 0 ? { memory: memory.items } : {}),
       prDescription: ctx.body,
       task: `Review PR #${ctx.prNumber}: ${ctx.title}`,
     });
@@ -145,6 +161,30 @@ export async function runCi(deps: RunCiDeps): Promise<RunCiResult> {
       durationMs,
       agent: manifest.name,
       prNumber: ctx.prNumber,
+      trace: {
+        agentSlug: deps.agentSlug ?? null,
+        manifestVersion: manifest.version ?? null,
+        manifestSha256,
+        provider: manifest.provider,
+        model: manifest.model,
+        nodeVersion: deps.nodeVersion ?? null,
+        dependencies: {
+          'agent-runner': RUNNER_VERSION,
+          'reviewer-core': reviewerCorePkg.version,
+        },
+        repo: `${ctx.owner}/${ctx.repo}`,
+        headSha: ctx.headSha,
+        baseSha: ctx.baseSha,
+        githubRunId: ctx.runId,
+        githubRunAttempt: ctx.runAttempt,
+        // The deterministic event (from grounded findings + ci_fail_on).
+        verdict: payload.event,
+        blockers,
+        gateTriggered: triggered,
+        postAs: deps.postAs,
+        tokensIn: outcome.tokensIn,
+        tokensOut: outcome.tokensOut,
+      },
     });
     writeFile(deps.resultPath, `${JSON.stringify(artifact, null, 2)}\n`);
 
