@@ -1,0 +1,46 @@
+import type { CSSProperties } from "react";
+
+export const s = {
+  wrap: { display: "flex", alignItems: "center", gap: 24, minHeight: 140 } satisfies CSSProperties,
+  none: {
+    width: 130,
+    height: 130,
+    flexShrink: 0,
+    display: "grid",
+    placeItems: "center",
+    textAlign: "center",
+    fontSize: 12.5,
+    color: "var(--text-muted)",
+    border: "1px dashed var(--border-strong)",
+    borderRadius: 999,
+    padding: 12,
+  } satisfies CSSProperties,
+  legendCol: { flex: 1, minWidth: 0 } satisfies CSSProperties,
+  legend: { display: "flex", flexDirection: "column", gap: 8, flex: 1, minWidth: 0, margin: 0, padding: 0, listStyle: "none" } satisfies CSSProperties,
+  item: { display: "flex", alignItems: "center", gap: 10, fontSize: 13 } satisfies CSSProperties,
+  swatch: (color: string): CSSProperties => ({
+    width: 9,
+    height: 9,
+    borderRadius: 2,
+    background: color,
+    flexShrink: 0,
+  }),
+  label: {
+    color: "var(--text-secondary)",
+    flex: 1,
+    minWidth: 0,
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  } satisfies CSSProperties,
+  value: { color: "var(--text-primary)", fontWeight: 600 } satisfies CSSProperties,
+  total: {
+    marginTop: 6,
+    paddingTop: 8,
+    borderTop: "1px solid var(--border)",
+    display: "flex",
+    justifyContent: "flex-end",
+    fontSize: 12.5,
+    color: "var(--text-secondary)",
+  } satisfies CSSProperties,
+} as const;

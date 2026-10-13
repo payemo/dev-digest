@@ -50,6 +50,31 @@
       "stats": "Stats",
       "ci": "CI",
       "context": "Context"
+    },
+    "stats": {
+      "title": "Performance",
+      "updating": "Updating…",
+      "runs": "Runs",
+      "avgCost": "Avg cost",
+      "totalCost": "{amount} total",
+      "avgDuration": "Avg duration",
+      "acceptRate": "Accept rate",
+      "acrossDecisions": "{accepted} of {decisions, plural, one {# decision} other {# decisions}}",
+      "noDecisions": "No accept/dismiss decisions yet",
+      "lowSample": "Low sample",
+      "lowSampleHint": "Too few decisions to rank or trend this rate.",
+      "bySeverity": "Findings by severity",
+      "severity": {
+        "CRITICAL": "Critical",
+        "WARNING": "Warning",
+        "SUGGESTION": "Suggestion"
+      },
+      "failedRuns": "{count, plural, one {# failed run} other {# failed runs}}",
+      "unpricedRuns": "{count, plural, one {# unpriced run} other {# unpriced runs}}",
+      "pending": "{count, plural, one {# pending finding} other {# pending findings}}",
+      "noRuns": "No runs in this period",
+      "noRunsBody": "This agent hasn't run in the selected period. Pick a longer period, or run it on a pull request.",
+      "loadError": "Could not load this agent's stats."
     }
   },
   "config": {

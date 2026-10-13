@@ -18,6 +18,7 @@ import brief from './brief/routes.js';
 import evals from './eval/routes.js';
 import ci from './ci/routes.js';
 import multiAgent from './multi-agent/routes.js';
+import agentStats from './agent-stats/routes.js';
 
 /**
  * Module registry. Each feature module is a Fastify plugin in
@@ -51,4 +52,5 @@ export const modules: Record<string, FastifyPluginAsync> = {
   evals,
   ci,
   multiAgent,
+  agentStats,
 };

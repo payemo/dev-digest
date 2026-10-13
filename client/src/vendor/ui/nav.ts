@@ -54,6 +54,9 @@ export const NAV: NavGroup[] = [
     section: "GLOBAL",
     items: [
       // No gKey, same reasoning as `context` above. The label is duplicated in
+      // messages/en/shell.json under `nav.agent-performance`.
+      { key: "agent-performance", label: "Agent Performance", icon: "Activity", href: "/agent-performance" },
+      // No gKey, same reasoning as `context` above. The label is duplicated in
       // messages/en/shell.json under `nav.ci-runs`.
       { key: "ci-runs", label: "CI Runs", icon: "Workflow", href: "/ci-runs" },
     ],
