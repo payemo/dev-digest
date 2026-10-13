@@ -118,3 +118,15 @@ export const multiAgentKeys = {
   latestForPull: (prId: string | null | undefined) => ["multi-agent", "pull", prId] as const,
   latestForRepo: (repoId: string | null | undefined) => ["multi-agent", "repo", repoId] as const,
 };
+
+/**
+ * Query-key factory for agent stats (src/lib/hooks/agent-performance.ts): the
+ * Agent Performance dashboard and the agent editor's Stats tab. Keyed by the
+ * explicit `[from, to)` window both endpoints take, so the same window never
+ * fetches twice and a period change is a new key, not a refetch.
+ */
+export const agentPerformanceKeys = {
+  window: (from: string, to: string) => ["agent-performance", from, to] as const,
+  agentStats: (id: string | null | undefined, from: string, to: string) =>
+    ["agent-stats", id, from, to] as const,
+};

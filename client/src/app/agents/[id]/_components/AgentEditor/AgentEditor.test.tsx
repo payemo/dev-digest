@@ -52,4 +52,11 @@ describe("A2 Agent Editor (smoke)", () => {
     fireEvent.click(screen.getByText("CI"));
     expect(onTab).toHaveBeenCalledWith("ci");
   });
+
+  it("offers a Stats tab that reports the stats key when picked", () => {
+    const onTab = vi.fn();
+    renderWithIntl(<AgentEditor agent={AGENT} tab="config" onTab={onTab} />);
+    fireEvent.click(screen.getByText("Stats"));
+    expect(onTab).toHaveBeenCalledWith("stats");
+  });
 });

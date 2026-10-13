@@ -1,32 +1,91 @@
 {
   "title": "Agent Performance",
-  "subtitle": "Accept-rate is the headline quality signal · cost shown as a breakdown",
+  "subtitle": "Which agents earn their keep — accept rate is the quality signal",
+  "crumb": "Agent Performance",
   "loadError": "Could not load agent performance.",
-  "summary": {
-    "totalRuns": "Total runs",
-    "avgAcceptRate": "Avg accept-rate",
-    "totalCost": "Total cost",
-    "mostActive": "Most active"
+  "updating": "Updating…",
+  "period": {
+    "label": "Period",
+    "1d": "1 day",
+    "30d": "30 days",
+    "custom": "Custom",
+    "from": "From",
+    "to": "To",
+    "invalidRange": "Pick a start date on or before the end date, spanning at most 366 days."
   },
-  "costByAgent": "Cost by agent",
-  "costByModel": "Cost by model",
-  "noCost": "No cost recorded yet.",
-  "sort": {
-    "acceptRate": "accept-rate",
-    "runs": "runs",
-    "cost": "cost"
+  "kpi": {
+    "totalRuns": "Total runs",
+    "totalCost": "Total cost",
+    "avgAcceptRate": "Avg accept rate",
+    "mostActive": "Most-active agent",
+    "failedRuns": "{count, plural, one {# failed run} other {# failed runs}} not counted",
+    "unpricedRuns": "{count, plural, one {# run} other {# runs}} without a price",
+    "acrossDecisions": "{accepted} of {decisions, plural, one {# decision} other {# decisions}}",
+    "noDecisions": "No accept/dismiss decisions yet",
+    "mostActiveDetail": "{runs, plural, one {# run} other {# runs}} · {accept} accept ({decisions, plural, one {# decision} other {# decisions}})"
+  },
+  "delta": {
+    "lower": "−{amount} {span}",
+    "higher": "+{amount} {span}",
+    "noChange": "No change {span}",
+    "noPrevious": "No runs in the previous period to compare",
+    "vsPreviousDays": "vs previous {days, plural, one {# day} other {# days}}",
+    "vsPreviousRange": "vs {from} – {to}"
   },
   "table": {
     "agent": "Agent",
-    "accept": "Accept",
     "runs": "Runs",
-    "findings": "Findings",
-    "cost": "Cost",
-    "trend": "Trend"
+    "avgCost": "Avg cost",
+    "avgDuration": "Avg dur.",
+    "accept": "Accept",
+    "lastRun": "Last run",
+    "view": "View",
+    "viewAgent": "View {name} stats",
+    "noRuns": "No runs in this period",
+    "disabled": "disabled",
+    "lowSample": "Low sample",
+    "lowSampleHint": "Fewer than {min} decisions — ranked after agents with enough evidence.",
+    "decisions": "n={count}",
+    "sortBy": "Sort by {column}",
+    "ago": {
+      "justNow": "just now",
+      "minutes": "{n}m ago",
+      "hours": "{n}h ago",
+      "days": "{n}d ago"
+    },
+    "expand": {
+      "toggle": "Show details for {name}",
+      "accepted": "Accepted",
+      "dismissed": "Dismissed",
+      "pending": "Pending",
+      "failedRuns": "Failed runs",
+      "unpricedRuns": "Unpriced runs",
+      "bySeverity": "Critical / warning / suggestion",
+      "previousRate": "Previous period",
+      "previousRateValue": "{rate} accept ({decisions, plural, one {# decision} other {# decisions}})"
+    }
+  },
+  "trend": {
+    "up": "{delta} pts vs previous period",
+    "down": "{delta} pts vs previous period",
+    "flat": "{delta} pts vs previous period",
+    "unavailable": "Not enough decisions in one of the periods (min {min})",
+    "unavailableNoMin": "Not enough decisions in one of the periods to compare"
+  },
+  "cost": {
+    "title": "Cost breakdown",
+    "byAgent": "By agent",
+    "byModel": "By model",
+    "total": "Total {amount}",
+    "none": "No cost recorded",
+    "estimated": "Estimated",
+    "provenance": "All costs are DevDigest estimates: provider-reported where the provider returns a cost (OpenRouter), otherwise token counts × list price. No reconciled billing data is available.",
+    "deletedAgent": "Deleted agent",
+    "unknownModel": "Unknown model"
   },
   "empty": {
-    "title": "No agent runs yet",
-    "body": "Run a review (manually) to populate per-agent performance."
+    "title": "No agent runs in this period",
+    "body": "Reviews start from a pull request page. Run one, or pick a longer period."
   },
-  "perAgent": "Per-agent"
+  "deletedAgentRuns": "{count, plural, one {# run} other {# runs}} by deleted agents count toward the totals and the cost breakdown but have no row."
 }
