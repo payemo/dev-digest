@@ -28,6 +28,12 @@ export const s = {
   status: (color: string): CSSProperties => ({ fontSize: 11.5, color }),
   body: { display: "flex", flexDirection: "column", gap: 6, padding: "0 10px 10px" },
   error: { fontSize: 12.5, color: "var(--failed)", padding: "6px 2px", wordBreak: "break-word" },
+  findingItem: (decided: boolean): CSSProperties => ({
+    display: "flex",
+    flexDirection: "column",
+    gap: 6,
+    opacity: decided ? 0.7 : 1,
+  }),
   finding: (color: string): CSSProperties => ({
     display: "flex",
     flexDirection: "column",
