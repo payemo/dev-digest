@@ -19,5 +19,8 @@ export const s = {
     color: "var(--text-secondary)",
     lineHeight: 1.5,
   } satisfies CSSProperties,
+  noteTitle: { fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 } satisfies CSSProperties,
+  noteSteps: { margin: 0, paddingLeft: 18 } satisfies CSSProperties,
+  noteFoot: { marginTop: 6, color: "var(--text-muted)" } satisfies CSSProperties,
   noteIcon: { flexShrink: 0, marginTop: 2 } satisfies CSSProperties,
 } as const;

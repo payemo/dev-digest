@@ -12,7 +12,6 @@ import {
   CategoryTag,
   MonoLink,
   ConfidenceNum,
-  Button,
   Markdown,
   type Severity,
   type Category,
@@ -21,7 +20,7 @@ import type { FindingRecord, FindingActionKind } from "@devdigest/shared";
 import { SEV_COLOR, SEV_COLOR_FALLBACK } from "./constants";
 import { lineLabel } from "./helpers";
 import { githubBlobUrl } from "@/lib/github-urls";
-import { EvalCaseModal } from "@/components/eval-case-modal";
+import { FindingActions } from "@/components/finding-actions";
 import { s } from "./styles";
 
 export function FindingCard({
@@ -47,7 +46,6 @@ export function FindingCard({
   const t = useTranslations("prReview");
   const tEval = useTranslations("eval");
   const [expanded, setExpanded] = React.useState(defaultExpanded ?? false);
-  const [evalOpen, setEvalOpen] = React.useState(false);
   const sevColor = SEV_COLOR[f.severity] ?? SEV_COLOR_FALLBACK;
   const fileHref =
     repoFullName && headSha
@@ -106,58 +104,9 @@ export function FindingCard({
             </div>
           )}
 
-          <div style={s.actions}>
-            <Button
-              kind="secondary"
-              size="sm"
-              icon="Check"
-              disabled={pending}
-              active={accepted}
-              onClick={() => onAction?.("accept")}
-            >
-              {t("finding.accept")}
-            </Button>
-            <Button
-              kind="ghost"
-              size="sm"
-              icon="X"
-              disabled={pending}
-              active={dismissed}
-              onClick={() => onAction?.("dismiss")}
-            >
-              {t("finding.dismiss")}
-            </Button>
-            {/* Enabled only once the finding carries a persisted decision —
-                accepted seeds a must_find case, dismissed a must_not_flag one. */}
-            <span title={muted ? undefined : tEval("finding.needsDecision")}>
-              <Button
-                kind="ghost"
-                size="sm"
-                icon="FlaskConical"
-                disabled={!muted}
-                onClick={() => setEvalOpen(true)}
-              >
-                {tEval("finding.turnIntoCase")}
-              </Button>
-            </span>
-            {/* Learn is not built yet: visible, disabled, no handler, no call.
-                Button takes no `title`, so the tooltip sits on a wrapper. */}
-            {showLearn && (
-              <span title={t("finding.learnComingSoon")}>
-                <Button kind="ghost" size="sm" icon="Brain" disabled>
-                  {t("finding.learn")}
-                </Button>
-              </span>
-            )}
-          </div>
+          <FindingActions f={f} onAction={(k) => onAction?.(k)} pending={pending} showLearn={showLearn} />
           {!muted && <div style={s.evalHint}>{tEval("finding.needsDecision")}</div>}
         </div>
-      )}
-      {evalOpen && (
-        <EvalCaseModal
-          mode={{ kind: "fromFinding", findingId: f.id, findingTitle: f.title }}
-          onClose={() => setEvalOpen(false)}
-        />
       )}
     </div>
   );

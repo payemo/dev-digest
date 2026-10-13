@@ -6,7 +6,7 @@ import React from "react";
 import { useTranslations } from "next-intl";
 import { Badge, Chip, Icon } from "@devdigest/ui";
 import type { CiPostAs, CiTrigger } from "@devdigest/shared";
-import { POST_AS_OPTIONS, TRIGGERS } from "../../constants";
+import { BLOCK_MERGE_STEPS, POST_AS_OPTIONS, TRIGGERS } from "../../constants";
 import { s } from "./styles";
 
 export function ConfigureStep({
@@ -63,7 +63,15 @@ export function ConfigureStep({
       </div>
       <div style={s.note}>
         <Icon.Info size={14} style={s.noteIcon} />
-        <span>{t.rich("exportWizard.blockMergeNote", { b: (chunks) => <strong>{chunks}</strong> })}</span>
+        <div>
+          <div style={s.noteTitle}>{t("exportWizard.blockMergeTitle")}</div>
+          <ol style={s.noteSteps}>
+            {BLOCK_MERGE_STEPS.map((key) => (
+              <li key={key}>{t.rich(key, { b: (chunks) => <strong>{chunks}</strong> })}</li>
+            ))}
+          </ol>
+          <div style={s.noteFoot}>{t("exportWizard.blockMergeFoot")}</div>
+        </div>
       </div>
     </div>
   );

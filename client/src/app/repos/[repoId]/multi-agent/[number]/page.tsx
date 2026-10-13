@@ -109,6 +109,7 @@ export default function MultiAgentResultsPage() {
         {mode === "columns" ? (
           <ColumnsView
             columns={view.columns}
+            prId={view.pr_id}
             onOpenFinding={(runId, findingId) =>
               setParams({ view: "tabs", agent: runId, finding: findingId })
             }

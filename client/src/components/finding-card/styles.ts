@@ -74,12 +74,6 @@ export const s = {
     textTransform: "uppercase",
   } satisfies CSSProperties,
   evalHint: { fontSize: 12, color: "var(--text-muted)", marginTop: 6 } satisfies CSSProperties,
-  actions: {
-    display: "flex",
-    gap: 8,
-    marginTop: 14,
-    flexWrap: "wrap",
-  } satisfies CSSProperties,
   composer: {
     marginTop: 12,
     display: "flex",

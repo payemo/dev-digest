@@ -2,15 +2,30 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import messages from "../../../../../../../messages/en/multiAgent.json";
+import prReview from "../../../../../../../messages/en/prReview.json";
+import evalMessages from "../../../../../../../messages/en/eval.json";
 import { maColumn, maFinding } from "@/test/multi-agent-fixtures";
 
+const mutate = vi.fn();
 vi.mock("@/lib/hooks/reviews", () => ({
+  useFindingAction: () => ({ mutate, isPending: false, variables: undefined }),
   useRunEvents: () => ({ events: [], running: true }),
+}));
+// The eval-case modal is never opened here; keep its hooks inert.
+vi.mock("@/lib/hooks/eval", () => ({
+  useEvalCaseSeed: () => ({ data: undefined, isLoading: false }),
+  useCreateCaseFromFinding: () => ({ mutateAsync: vi.fn(), isPending: false, error: null }),
+  useCreateEvalCase: () => ({ mutateAsync: vi.fn(), isPending: false, error: null }),
+  useUpdateEvalCase: () => ({ mutateAsync: vi.fn(), isPending: false, error: null }),
+  useRunEvalCase: () => ({ mutateAsync: vi.fn(), isPending: false, error: null }),
 }));
 
 import { ColumnsView } from "./ColumnsView";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  mutate.mockReset();
+});
 
 const columns = [
   maColumn({ findings: [maFinding({ id: "f1" }), maFinding({ id: "f2", title: "Second", start_line: 61 })] }),
@@ -29,18 +44,16 @@ const columns = [
 
 function renderColumns(onOpenFinding = vi.fn(), onOpenTrace = vi.fn()) {
   render(
-    <NextIntlClientProvider locale="en" messages={{ multiAgent: messages }}>
-      <ColumnsView columns={columns} onOpenFinding={onOpenFinding} onOpenTrace={onOpenTrace} />
+    <NextIntlClientProvider locale="en" messages={{ multiAgent: messages, prReview, eval: evalMessages }}>
+      <ColumnsView columns={columns} prId="pr1" onOpenFinding={onOpenFinding} onOpenTrace={onOpenTrace} />
     </NextIntlClientProvider>,
   );
   return { onOpenFinding, onOpenTrace };
 }
 
 describe("ColumnsView", () => {
-  it("is read-only and a finding opens Tabs + detail for that run (AC-28, AC-29)", () => {
+  it("a finding opens Tabs + detail for that run, and the trace opens (AC-28)", () => {
     const { onOpenFinding, onOpenTrace } = renderColumns();
-    expect(screen.queryByRole("button", { name: /Accept|Reject|Dismiss|Learn|eval/i })).toBeNull();
-
     const security = screen.getByRole("region", { name: "Security" });
     expect(within(security).getByText("2 findings")).toBeInTheDocument();
     fireEvent.click(within(security).getByRole("button", { name: /Second/ }));
@@ -48,6 +61,23 @@ describe("ColumnsView", () => {
 
     fireEvent.click(within(security).getByRole("button", { name: "View trace" }));
     expect(onOpenTrace).toHaveBeenCalledWith("run1");
+  });
+
+  it("each finding carries Accept / Dismiss / eval case / disabled Learn that act in place", () => {
+    const { onOpenFinding } = renderColumns();
+    const security = screen.getByRole("region", { name: "Security" });
+    expect(within(security).getAllByRole("button", { name: "Accept" })).toHaveLength(2);
+    expect(within(security).getAllByRole("button", { name: "Reject" })).toHaveLength(2);
+    expect(within(security).getAllByRole("button", { name: "Turn into eval case" })[0]).toBeDisabled();
+    const learn = within(security).getAllByRole("button", { name: "Learn" });
+    expect(learn[0]).toBeDisabled();
+
+    fireEvent.click(within(security).getAllByRole("button", { name: "Accept" })[1]!);
+    expect(mutate).toHaveBeenCalledWith({ findingId: "f2", action: "accept", prId: "pr1" });
+    fireEvent.click(within(security).getAllByRole("button", { name: "Reject" })[0]!);
+    expect(mutate).toHaveBeenCalledWith({ findingId: "f1", action: "dismiss", prId: "pr1" });
+    // Acting does not navigate away.
+    expect(onOpenFinding).not.toHaveBeenCalled();
   });
 
   it("shows a failed column's error and no score; a running column shows a progress bar", () => {

@@ -100,6 +100,10 @@ describe("ExportWizard", () => {
 
     // Configure: at least one trigger; changes regenerate the preview.
     fireEvent.click(btn(/Continue/));
+    // The branch-protection how-to is on this step (it is what makes the check block merges).
+    expect(screen.getByText("Make this check block merges")).toBeInTheDocument();
+    expect(screen.getByText(/Settings → Branches/)).toBeInTheDocument();
+    expect(screen.getByText(/Require status checks to pass before merging/)).toBeInTheDocument();
     fireEvent.click(btn("pull_request:opened"));
     fireEvent.click(btn("pull_request:synchronize"));
     expect(screen.getByText("Pick at least one trigger.")).toBeInTheDocument();

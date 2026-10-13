@@ -26,3 +26,10 @@ export const POST_AS_OPTIONS: readonly { value: CiPostAs; labelKey: string; reco
 
 export const SECRETS_DOCS_URL =
   "https://docs.github.com/actions/security-guides/using-secrets-in-github-actions";
+
+/** Branch-protection steps shown on the Configure step, under `ci.exportWizard`. */
+export const BLOCK_MERGE_STEPS = [
+  "exportWizard.blockMergeStep1",
+  "exportWizard.blockMergeStep2",
+  "exportWizard.blockMergeStep3",
+] as const;
