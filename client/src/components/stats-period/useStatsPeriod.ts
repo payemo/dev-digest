@@ -3,10 +3,10 @@
    with router.replace and keeps every other search param (`tab`). */
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { StatsWindow } from "@devdigest/shared";
-import type { StatsPeriod } from "./constants";
+import { ROLLING_REANCHOR_MS, type StatsPeriod } from "./constants";
 import {
   defaultCustomRange,
   periodSearchParams,
@@ -32,9 +32,28 @@ export function useStatsPeriod(): StatsPeriodApi {
   const params = useSearchParams();
   const search = new URLSearchParams(params?.toString() ?? "");
   const state = readPeriodState(search);
-  // Anchored once, and re-anchored only when the user picks a period, so the
-  // rolling window (and its query key) doesn't move on every render.
+  // The rolling window's end, truncated to the minute so it (and its query key)
+  // doesn't move on every render. It is re-anchored when the user picks a
+  // period and, for a rolling preset, once a minute while the page is visible
+  // and when it becomes visible again — otherwise a run that finishes after the
+  // page opened is outside the window and never shows up.
   const [anchor, setAnchor] = useState(() => truncateToMinute(new Date()));
+  const rolling = state.period !== "custom";
+
+  useEffect(() => {
+    if (!rolling) return;
+    const reanchor = () => {
+      if (document.visibilityState !== "visible") return;
+      const now = truncateToMinute(new Date());
+      setAnchor((cur) => (cur.getTime() === now.getTime() ? cur : now));
+    };
+    const id = window.setInterval(reanchor, ROLLING_REANCHOR_MS);
+    document.addEventListener("visibilitychange", reanchor);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", reanchor);
+    };
+  }, [rolling]);
 
   const write = (next: PeriodState) => {
     router.replace(`${pathname}?${periodSearchParams(next, search)}`);

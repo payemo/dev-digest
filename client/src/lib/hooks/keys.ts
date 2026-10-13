@@ -126,6 +126,8 @@ export const multiAgentKeys = {
  * fetches twice and a period change is a new key, not a refetch.
  */
 export const agentPerformanceKeys = {
+  /** Prefixes of every cached window — invalidated when new runs are ingested. */
+  roots: () => [["agent-performance"], ["agent-stats"]] as const,
   window: (from: string, to: string) => ["agent-performance", from, to] as const,
   agentStats: (id: string | null | undefined, from: string, to: string) =>
     ["agent-stats", id, from, to] as const,

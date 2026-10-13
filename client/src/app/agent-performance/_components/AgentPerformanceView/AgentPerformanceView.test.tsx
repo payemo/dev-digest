@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { ROLLING_REANCHOR_MS } from "@/components/stats-period/constants";
 import { mockApi } from "@/test/ci-fixtures";
 import { makeAgentStats, makePerformance, renderStats } from "@/test/agent-performance-fixtures";
 
@@ -10,7 +11,9 @@ import { makeAgentStats, makePerformance, renderStats } from "@/test/agent-perfo
    state (AC4), missing "estimate" provenance (AC7), a cost delta with the
    wrong sign/colour or a number invented against an empty period (AC8), a
    sparkline drawn from a single bucket, the View link losing the window
-   (AC11), and any interaction issuing a non-GET or non-dashboard call (AC6). */
+   (AC11), a rolling window pinned to the minute the page opened so a later
+   run never shows up, and any interaction issuing a non-GET or
+   non-dashboard call (AC6). */
 
 const nav = vi.hoisted(() => ({ search: "", replace: vi.fn(), listeners: new Set<() => void>() }));
 vi.mock("next/navigation", async () =>
@@ -160,6 +163,32 @@ describe("AgentPerformanceView", () => {
     const sent = new URLSearchParams(calls[0]!.path.split("?")[1]);
     expect(sent.get("from")).toBe(new Date(2026, 9, 1).toISOString());
     expect(sent.get("to")).toBe(new Date(2026, 9, 8).toISOString());
+  });
+
+  it("moves a rolling window forward while the page stays open, so a run that finishes later is counted", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-13T21:10:30Z"));
+    const setIntervalSpy = vi.spyOn(window, "setInterval");
+    try {
+      const calls = mockApi({ [PERF]: () => ({ json: makePerformance() }) });
+      renderStats(<AgentPerformanceView />);
+      await screen.findByRole("table");
+      expect(calls).toHaveLength(1);
+      const first = new URLSearchParams(calls[0]!.path.split("?")[1]).get("to");
+      expect(first).toBe("2026-10-13T21:10:00.000Z");
+
+      // The PR's review finishes at 21:14; the page's own timer fires a minute later.
+      vi.setSystemTime(new Date("2026-10-13T21:15:10Z"));
+      const tick = setIntervalSpy.mock.calls.find(([, ms]) => ms === ROLLING_REANCHOR_MS)![0] as () => void;
+      act(() => tick());
+
+      await waitFor(() => expect(calls).toHaveLength(2));
+      const second = new URLSearchParams(calls[1]!.path.split("?")[1]).get("to");
+      expect(second).toBe("2026-10-13T21:15:00.000Z");
+    } finally {
+      setIntervalSpy.mockRestore();
+      vi.useRealTimers();
+    }
   });
 
   it("only ever issues GET /agent-performance across load, retry, sorting, expansion and a period change", async () => {

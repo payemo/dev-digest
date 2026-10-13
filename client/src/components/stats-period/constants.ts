@@ -10,6 +10,13 @@ export const PRESET_DAYS: Record<Exclude<StatsPeriod, "custom">, number> = {
   "30d": 30,
 };
 
+/**
+ * How often an open page with a rolling preset moves the window's end to
+ * "now". Without it the window stays pinned to the minute the page opened, and
+ * a run that finishes later falls outside it.
+ */
+export const ROLLING_REANCHOR_MS = 60_000;
+
 /** Longest custom range, mirroring the server's 366-day cap on the window. */
 export const MAX_CUSTOM_DAYS = 366;
 

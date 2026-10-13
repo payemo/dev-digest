@@ -23,7 +23,7 @@ import type {
   CiRunsQueryInput,
 } from "@devdigest/shared";
 import { api } from "../api";
-import { ciKeys } from "./keys";
+import { agentPerformanceKeys, ciKeys } from "./keys";
 
 /** Background sync cadence while a CI view is open and the tab is visible. */
 const CI_AUTO_SYNC_MS = 120_000;
@@ -98,12 +98,19 @@ export function useCiRuns(query: CiRunsQueryInput) {
   });
 }
 
-/** Pull finished GitHub Actions runs back into the studio. */
+/**
+ * Pull finished GitHub Actions runs back into the studio. An ingested CI run is
+ * an `agent_runs` row, so the Agent Performance numbers are marked stale too.
+ */
 export function useCiSync() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => api.post("/ci/sync", {}, CiSyncResultSchema),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ciKeys.root() }),
+    onSuccess: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: ciKeys.root() }),
+        ...agentPerformanceKeys.roots().map((queryKey) => qc.invalidateQueries({ queryKey })),
+      ]),
   });
 }
 
